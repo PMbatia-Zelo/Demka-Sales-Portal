@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Demka.Portal.Core/Demka.Portal.Core.csproj" />
+    <Project Path="src/Demka.Portal.Web/Demka.Portal.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Demka.Portal.Tests/Demka.Portal.Tests.csproj" />
+  </Folder>
+</Solution>

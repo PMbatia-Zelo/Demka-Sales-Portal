@@ -1,0 +1,28 @@
+{
+  "cycle": "Q4 2026",
+  "baselineMonths": ["2026-01","2026-02","2026-03","2026-04","2026-05","2026-06","2026-07","2026-08","2026-09"],
+  "source": "Demka_MT_Merchandiser_Q4_2026_Value_Targets.xlsx, Assumptions sheet (confirmed 17 Oct 2026: Q4 target KES 437.3M)",
+  "assumptions": {
+    "mode": "BottomUp",
+    "companyTarget": null,
+    "baselineWeights": [0, 0.25, 0.75],
+    "lastMonthCompletionFactor": 0.95,
+    "noMerchandiserGrowth": 0.13,
+    "recoveryMinPeakPerMonth": 250000,
+    "recoveryDropBelowPeak": 0.15,
+    "recoveryShareOfGap": 0.5,
+    "ceasedOutlets": "Exclude",
+    "vatRate": 0.16,
+    "regions": {
+      "Western": { "growth": 0.15, "topDownAllocation": 0.335, "plannedNewMerchandisers": 1, "newHireMonthsActive": 2, "newHireRampUp": 0.5 },
+      "Nairobi": { "growth": 0.15, "topDownAllocation": 0.449, "plannedNewMerchandisers": 2, "newHireMonthsActive": 2, "newHireRampUp": 0.5 },
+      "Central": { "growth": 0.14, "topDownAllocation": 0.171, "plannedNewMerchandisers": 0, "newHireMonthsActive": 0, "newHireRampUp": 0.5 },
+      "Coast":   { "growth": 0.14, "topDownAllocation": 0.045, "plannedNewMerchandisers": 1, "newHireMonthsActive": 2, "newHireRampUp": 0.5 }
+    },
+    "phasing": [
+      { "name": "2026-10", "days": 31, "planPerDay": 76.73, "seasonalAdjustment": 1 },
+      { "name": "2026-11", "days": 30, "planPerDay": 78.36, "seasonalAdjustment": 1 },
+      { "name": "2026-12", "days": 31, "planPerDay": 80.00, "seasonalAdjustment": 1 }
+    ]
+  }
+}
