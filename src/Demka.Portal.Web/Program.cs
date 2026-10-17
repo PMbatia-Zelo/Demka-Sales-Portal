@@ -1,5 +1,9 @@
+using System.Threading.RateLimiting;
+using Demka.Portal.Web.Auth;
 using Demka.Portal.Web.Data;
+using Demka.Portal.Web.Endpoints;
 using Demka.Portal.Web.Services;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,21 +12,73 @@ builder.Services.AddDbContext<PortalDbContext>(o =>
     o.UseSqlServer(builder.Configuration.GetConnectionString("Portal")
                    ?? throw new InvalidOperationException("Connection string 'Portal' is missing.")));
 builder.Services.AddScoped<TargetService>();
-builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
+builder.Services.ConfigureHttpJsonOptions(o =>
+    o.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
+
+// Cookie encryption keys: keep them in a folder on the server so sign-ins survive restarts.
+var keysPath = builder.Configuration["DataProtection:KeysPath"];
+var dp = builder.Services.AddDataProtection().SetApplicationName("DemkaSalesPortal");
+if (!string.IsNullOrWhiteSpace(keysPath)) dp.PersistKeysToFileSystem(new DirectoryInfo(keysPath));
+
+builder.Services.AddPortalAuth(builder.Environment);
+
+// At most 10 sign-in attempts per minute from one address.
+builder.Services.AddRateLimiter(o =>
+{
+    o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    o.AddPolicy(AuthEndpoints.LoginRateLimit, http => RateLimitPartition.GetFixedWindowLimiter(
+        http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+});
 
 var app = builder.Build();
 
-// Apply database migrations and load the starting data when configured (on by default in Development).
-if (app.Configuration.GetValue("Database:MigrateAndSeedOnStartup", false))
+// Apply migrations and load the starting data when configured (on by default in Development).
+using (var scope = app.Services.CreateScope())
 {
-    using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<PortalDbContext>();
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    await db.Database.MigrateAsync();
-    await DbSeeder.SeedAsync(db, Path.Combine(AppContext.BaseDirectory, "seed", "q4-2026"), logger);
+    if (app.Configuration.GetValue("Database:MigrateAndSeedOnStartup", false))
+    {
+        await db.Database.MigrateAsync();
+        await DbSeeder.SeedAsync(db, Path.Combine(AppContext.BaseDirectory, "seed", "q4-2026"), logger);
+    }
+    await BootstrapAdmin.RunAsync(db, app.Configuration, logger);
 }
 
-app.MapGet("/", () => Results.Text("Demka Sales Capability Portal API is running. Try /api/health"));
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+    app.UseHttpsRedirection();
+}
+
+// Basic security headers on every response.
+app.Use(async (ctx, next) =>
+{
+    var h = ctx.Response.Headers;
+    h["X-Content-Type-Options"] = "nosniff";
+    h["Referrer-Policy"] = "no-referrer";
+    h["X-Frame-Options"] = "DENY";
+    h["Content-Security-Policy"] = "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; manifest-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
+    if (ctx.Request.Path.StartsWithSegments("/api")) h.CacheControl = "no-store";
+    await next();
+});
+
+app.UseDefaultFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = c =>
+    {
+        // The app shell and service worker must always be revalidated so updates reach phones.
+        var name = c.File.Name;
+        if (name is "index.html" or "sw.js" or "manifest.webmanifest")
+            c.Context.Response.Headers.CacheControl = "no-cache";
+    }
+});
+
+app.UseRateLimiter();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapGet("/api/health", async (PortalDbContext db) =>
 {
@@ -32,90 +88,18 @@ app.MapGet("/api/health", async (PortalDbContext db) =>
     return Results.Ok(new
     {
         status = "ok",
-        database = db.Database.GetDbConnection().Database,
         outlets = await db.Outlets.CountAsync(),
         users = await db.Users.CountAsync(),
-        salesRows = await db.SalesActuals.CountAsync(),
         cycle = cycle?.Name,
         publishedVersion = cycle?.PublishedVersion,
         publishedTotalKes = version is null ? (decimal?)null : Math.Round(version.Total, 2)
     });
 });
 
-// Published targets by region and month (what users see).
-app.MapGet("/api/targets/summary", async (PortalDbContext db, TargetService targets) =>
-{
-    var cycle = await targets.GetCycleAsync();
-    var version = await db.TargetVersions.SingleAsync(v => v.CycleId == cycle.Id && v.Version == cycle.PublishedVersion);
-    var regions = await db.RegionTargets.Where(r => r.TargetVersionId == version.Id)
-        .GroupBy(r => r.Region)
-        .Select(g => new { region = g.Key, target = g.Sum(x => x.Target), expansion = g.Sum(x => x.Expansion) })
-        .ToListAsync();
-    var months = await db.RegionTargets.Where(r => r.TargetVersionId == version.Id)
-        .GroupBy(r => r.Month)
-        .Select(g => new { month = g.Key, target = g.Sum(x => x.Target) })
-        .OrderBy(x => x.month)
-        .ToListAsync();
-    return Results.Ok(new { cycle = cycle.Name, version = version.Version, total = version.Total, regions, months });
-});
+app.MapAuthEndpoints();
+app.MapPortalEndpoints();
 
-// One holder's outlet targets (the merchandiser "My targets" screen will use this once sign-in exists).
-app.MapGet("/api/holders/{userId:int}/targets", async (int userId, PortalDbContext db, TargetService targets) =>
-{
-    var cycle = await targets.GetCycleAsync();
-    var version = await db.TargetVersions.SingleAsync(v => v.CycleId == cycle.Id && v.Version == cycle.PublishedVersion);
-    var user = await db.Users.FindAsync(userId);
-    if (user is null) return Results.NotFound(new { error = $"No user with id {userId}." });
-
-    var rows = await db.OutletTargets
-        .Where(t => t.TargetVersionId == version.Id && t.HolderUserId == userId)
-        .Select(t => new { t.OutletId, outlet = t.Outlet!.Name, t.Month, t.Amount, t.BaselinePerMonth, t.Growth, t.Recovery })
-        .ToListAsync();
-    var outlets = rows.GroupBy(r => new { r.OutletId, r.outlet })
-        .Select(g => new
-        {
-            id = g.Key.OutletId,
-            name = g.Key.outlet,
-            q4 = g.Sum(x => x.Amount),
-            months = g.OrderBy(x => x.Month).Select(x => new { x.Month, x.Amount }),
-            baselinePerMonth = g.First().BaselinePerMonth,
-            growth = g.First().Growth,
-            recovery = g.First().Recovery
-        })
-        .OrderByDescending(o => o.q4);
-    return Results.Ok(new { holder = user.FullName, user.Region, cycle = cycle.Name, version = version.Version, total = rows.Sum(r => r.Amount), outlets });
-});
-
-// Admin endpoints. Development only until sign-in and roles arrive in the next increment.
-if (app.Environment.IsDevelopment())
-{
-    var admin = app.MapGroup("/api/admin");
-
-    admin.MapGet("/targets/preview", async (TargetService targets) =>
-    {
-        var cycle = await targets.GetCycleAsync();
-        var (result, _) = await targets.CalculateAsync(cycle);
-        return Results.Ok(new
-        {
-            cycle = cycle.Name,
-            draftTotal = Math.Round(result.Total, 2),
-            regions = result.Regions.Select(r => new
-            {
-                r.Region, r.CurrentMerchandisers,
-                bottomUpOutlets = Math.Round(r.BottomUpOutlets, 2),
-                expansion = Math.Round(r.Expansion, 2),
-                target = Math.Round(r.Target, 2)
-            }),
-            recoveryOutlets = result.Outlets.Count(o => o.Recovery)
-        });
-    });
-
-    admin.MapPost("/targets/publish", async (TargetService targets, string? note) =>
-    {
-        var cycle = await targets.GetCycleAsync();
-        var v = await targets.PublishAsync(cycle, null, note);
-        return Results.Ok(new { cycle = cycle.Name, version = v.Version, total = Math.Round(v.Total, 2) });
-    });
-}
+// Any other non-API path returns the app shell, so deep links work.
+app.MapFallbackToFile("index.html");
 
 app.Run();

@@ -34,12 +34,22 @@ dotnet ef migrations add InitialCreate --project src/Demka.Portal.Web --output-d
 dotnet run --project src/Demka.Portal.Web
 ```
 
+### Sign in as the admin (first time only)
+
+The starting data has one national admin with no phone or PIN. Give it yours with .NET's secret store (kept on this PC, never in Git):
+
+```powershell
+dotnet user-secrets set "Bootstrap:AdminPhone" "07XXXXXXXX" --project src/Demka.Portal.Web
+dotnet user-secrets set "Bootstrap:AdminPin" "482913" --project src/Demka.Portal.Web
+```
+
+Restart the app, open http://localhost:5072, sign in with that phone and PIN, and choose a new PIN when asked.
+From the admin panel you can set any user's phone number and issue them a PIN.
+
 Then open:
 
 - http://localhost:5072/api/health — counts of outlets, users and sales rows, and the published total (should be 437253549.66)
-- http://localhost:5072/api/targets/summary — published targets by region and month
-- http://localhost:5072/api/holders/1/targets — one merchandiser's outlet targets
-- http://localhost:5072/api/admin/targets/preview — draft calculation (development only)
+- http://localhost:5072 — the app (sign-in, My targets, outlets; admin panel for the national admin)
 
 Stop the app with Ctrl+C.
 
@@ -59,5 +69,6 @@ dotnet run --project src/Demka.Portal.Web
 
 ## Status
 
-Increment 1 (this commit): target engine, database model, starting-data load, read-only API.
-Next: phone + PIN sign-in and roles, then the merchandiser screens.
+- Increment 1: target engine, database model, starting-data load.
+- Increment 2: phone + PIN sign-in (hashed PINs, lockout after 5 wrong tries, forced PIN change, 30-day sessions), roles, merchandiser My targets / outlets / outlet detail screens, admin Users page (set phone, issue or reset PIN), installable phone app (PWA) with offline copy of the last figures.
+- Next: data uploads (Business Central ledger, Solutech check-ins) so October actuals appear.
