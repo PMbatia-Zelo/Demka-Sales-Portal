@@ -2,7 +2,7 @@
    No inline handlers or styles (the Content-Security-Policy forbids them): events use data-action, widths are set from data-w. */
 'use strict';
 
-const S = { me: null, data: null, tab: 'home', outletId: null, cachedAt: null, admin: { users: null, q: '', pin: null, summary: null } };
+const S = { me: null, data: null, tab: 'home', outletId: null, cachedAt: null, admin: { tab: 'users', users: null, q: '', pin: null, summary: null, uploads: null, unmapped: null, months: null, outlets: null, last: null, busy: false } };
 const CACHE_KEY = 'demka.targets.v1';
 const $ = (sel) => document.querySelector(sel);
 
@@ -246,12 +246,67 @@ async function loadUsers() {
     [S.admin.users, S.admin.summary] = await Promise.all([api('/api/admin/users'), api('/api/admin/targets/summary').catch(() => null)]);
   } catch (e) { if (e.status === 401) S.me = null; else toast(e.message); }
 }
+async function loadAdminData() {
+  try {
+    const [uploads, unmapped, months, outlets] = await Promise.all([
+      api('/api/admin/uploads'), api('/api/admin/unmapped'), api('/api/admin/months'),
+      S.admin.outlets ? Promise.resolve(S.admin.outlets) : api('/api/admin/outlets')]);
+    Object.assign(S.admin, { uploads, unmapped, months, outlets });
+    if (!S.admin.last) S.admin.last = uploads.find((u) => u.type === 'LedgerEntries')?.summary || null;
+  } catch (e) { if (e.status === 401) S.me = null; else toast(e.message); }
+}
 function adminView() {
+  const tabs = [['users', 'Users'], ['data', 'Data uploads']];
+  return `<div class="top"><div><div class="eyebrow">National Modern Trade</div><h1>Admin panel</h1></div><button class="btn small" data-action="logout">Sign out</button></div>
+    <div class="subnav" role="tablist">${tabs.map(([id, l]) => `<button class="tab${S.admin.tab === id ? ' on' : ''}" role="tab" aria-selected="${S.admin.tab === id}" data-action="admintab" data-tab="${id}">${l}</button>`).join('')}</div>
+    ${S.admin.tab === 'data' ? dataView() : usersView()}`;
+}
+const monthLabel = (iso) => new Date(String(iso).slice(0, 10) + 'T00:00:00').toLocaleString('en-GB', { month: 'short', year: 'numeric' });
+function dataView() {
+  const A = S.admin, months = A.months || [];
+  if (!A.months) return '<div class="loading">Loading…</div>';
+  const firstOpen = months.find((m) => !m.closed)?.month || months[0]?.month;
+  const last = A.last;
+  const resultCard = last ? `<section class="card"><div class="row"><h2>Last upload</h2><span class="small muted">${esc(last.file || '')}</span></div>
+      <div class="small muted">${Number(last.rowsRead).toLocaleString()} rows read · ${Number(last.invoiceAndCreditLines).toLocaleString()} invoice and credit lines · entries ${esc(last.firstDate)} to ${esc(last.lastDate)} · replaced ${monthLabel(last.refreshFrom)} to ${monthLabel(last.refreshedTo)}</div>
+      <div class="tablewrap"><table><thead><tr><th>Month</th><th class="r">Outlets with sales</th><th class="r">Modern Trade taxable (KES)</th><th>Status</th></tr></thead><tbody>
+      ${(last.months || []).map((m) => `<tr><td>${monthLabel(m.month)}</td><td class="r">${m.outlets}</td><td class="r">${kes(m.amount)}</td><td>${m.provisional ? '<span class="pill p-warn">Provisional</span>' : '<span class="pill p-good">Closed</span>'}</td></tr>`).join('')}
+      </tbody></table></div>
+      <div class="small">${last.reviewNames ? `<b>${last.reviewNames} Modern Trade names</b> (${kes(last.reviewAmount)}) could not be placed on an outlet: see below.` : 'Every Modern Trade name was placed on an outlet.'}
+        ${last.newAutomaticLinks ? ` ${last.newAutomaticLinks} new names were linked automatically by outlet name.` : ''}</div>
+      ${last.rejected ? `<details><summary class="small">${last.rejected} rows skipped</summary><ul class="small">${(last.rejectedExamples || []).map((r) => `<li>Row ${r.row}: ${esc(r.reason)}</li>`).join('')}</ul></details>` : ''}
+    </section>` : '';
+  const un = A.unmapped || [];
+  const reviewCard = `<section class="card"><div class="row"><h2>Names to review</h2><span class="small muted">${un.length} names · ${kes(un.reduce((s, u) => s + u.amount, 0))}</span></div>
+    <div class="small muted">Sales the last upload couldn't place. Link each name to its outlet (its sales move there straight away), or ignore names that aren't Modern Trade.</div>
+    <datalist id="outletlist">${(A.outlets || []).map((o) => `<option value="${esc(o.name)} · ${esc(o.region)} #${o.id}"></option>`).join('')}</datalist>
+    ${un.length ? `<div class="tablewrap"><table><thead><tr><th>Name on invoice</th><th>Account</th><th class="r">Sales</th><th>Link to outlet</th><th></th></tr></thead><tbody>
+    ${un.slice(0, 100).map((u, i) => `<tr><td>${esc(u.nameKey)}<div class="small muted">${esc(u.postingGroup || '')}</div></td><td>${esc(u.customerNo)}<div class="small muted">${esc(u.customerName || '')}</div></td><td class="r">${kes(u.amount)}</td>
+      <td><form class="inline" data-form="link" data-i="${i}"><input type="search" name="outlet" list="outletlist" placeholder="Type outlet name" aria-label="Outlet for ${esc(u.nameKey)}"><button class="btn small primary" type="submit">Link</button></form></td>
+      <td class="r"><button class="btn small" data-action="ignore" data-i="${i}">Not MT</button></td></tr>`).join('')}
+    </tbody></table></div>` : '<div class="small">Nothing to review.</div>'}</section>`;
+  const monthsCard = `<section class="card"><h2>Months</h2>
+    <div class="small muted">Close a month after the day-5 ledger close; merchandisers then see its figures as final. You can reopen it if late postings arrive.</div>
+    <div class="tablewrap"><table><thead><tr><th>Month</th><th class="r">Outlets</th><th class="r">Sales uploaded</th><th>Status</th><th></th></tr></thead><tbody>
+    ${months.map((m) => `<tr><td>${monthLabel(m.month)}</td><td class="r">${m.outlets}</td><td class="r">${kes(m.amount)}</td><td>${m.closed ? '<span class="pill p-good">Closed</span>' : '<span class="pill p-warn">Provisional</span>'}</td>
+      <td class="r"><button class="btn small" data-action="month" data-month="${String(m.month).slice(0, 7)}" data-do="${m.closed ? 'reopen' : 'close'}">${m.closed ? 'Reopen' : 'Close month'}</button></td></tr>`).join('')}
+    </tbody></table></div></section>`;
+  return `<section class="card"><h2>Upload Business Central ledger</h2>
+      <div class="small muted">Customer Ledger Entries export, .xlsx or .csv, including at least the months you refresh. Uploading again replaces those months, so a corrected file is always safe.</div>
+      <form data-form="ledger" class="formgrid" novalidate>
+        <label class="f" for="lf">File<input id="lf" name="file" type="file" accept=".xlsx,.csv" required></label>
+        <label class="f" for="rf">Replace sales from<select id="rf" name="refreshFrom">${months.map((m) => `<option value="${String(m.month).slice(0, 7)}"${m.month === firstOpen ? ' selected' : ''}>${monthLabel(m.month)}</option>`).join('')}</select></label>
+        <div class="f"><span>&nbsp;</span><button class="btn primary" type="submit"${A.busy ? ' disabled' : ''}>${A.busy ? 'Reading file…' : 'Upload and refresh'}</button></div>
+      </form>
+      ${A.busy ? '<div class="banner">Reading the file. A full 40 MB export takes about a minute; keep this page open.</div>' : ''}
+      <div class="error" id="err" hidden></div>
+    </section>${resultCard}${reviewCard}${monthsCard}`;
+}
+function usersView() {
   const users = (S.admin.users || []).filter((u) => !S.admin.q || (u.name + ' ' + (u.region || '') + ' ' + u.role).toLowerCase().includes(S.admin.q.toLowerCase()));
   const sum = S.admin.summary;
   const statusPill = (s) => `<span class="pill ${s === 'Active' ? 'p-good' : s === 'Locked' ? 'p-bad' : s === 'Not issued' ? 'p-mute' : 'p-warn'}">${esc(s)}</span>`;
-  return `<div class="top"><div><div class="eyebrow">National Modern Trade</div><h1>Admin panel</h1></div><button class="btn small" data-action="logout">Sign out</button></div>
-    ${S.admin.pin ? `<section class="card"><div class="row"><h2>New PIN for ${esc(S.admin.pin.name)}</h2><button class="btn small" data-action="dismisspin">Done</button></div>
+  return `${S.admin.pin ? `<section class="card"><div class="row"><h2>New PIN for ${esc(S.admin.pin.name)}</h2><button class="btn small" data-action="dismisspin">Done</button></div>
       <div class="pinbox num">${esc(S.admin.pin.temporaryPin)}</div>
       <div class="small muted">Give this PIN to ${esc(S.admin.pin.name.split(' ')[0])} by phone or in person. It is shown only once; they must choose their own PIN when they first sign in.</div></section>` : ''}
     ${sum ? `<section class="card"><div class="row"><h2>${esc(sum.cycle)} targets · v${sum.version}</h2><span class="num">${kes(sum.total, 1)}</span></div>
@@ -276,6 +331,17 @@ document.addEventListener('click', async (e) => {
   else if (a === 'reload') { location.reload(); }
   else if (a === 'changepin') { $('#app').innerHTML = changePinView(false); $('#tabbar').hidden = true; focusFirst(); }
   else if (a === 'logout') { try { await api('/api/auth/logout', { method: 'POST' }); } catch { } clearCache(); S.me = null; S.data = null; S.tab = 'home'; render(); }
+  else if (a === 'admintab') { S.admin.tab = el.dataset.tab; render(); if (S.admin.tab === 'data') { await loadAdminData(); render(); } }
+  else if (a === 'ignore') {
+    const u = S.admin.unmapped[Number(el.dataset.i)]; el.disabled = true;
+    try { await api('/api/admin/mappings', { method: 'POST', body: { customerNo: u.customerNo, nameKey: u.nameKey, ignore: true } }); toast('Marked as not Modern Trade'); await loadAdminData(); render(); }
+    catch (err) { toast(err.message); el.disabled = false; }
+  }
+  else if (a === 'month') {
+    el.disabled = true;
+    try { await api(`/api/admin/months/${el.dataset.month}/${el.dataset.do}`, { method: 'POST' }); toast(el.dataset.do === 'close' ? 'Month closed' : 'Month reopened'); await loadAdminData(); render(); }
+    catch (err) { toast(err.message); el.disabled = false; }
+  }
   else if (a === 'dismisspin') { S.admin.pin = null; render(); }
   else if (a === 'resetpin') {
     el.disabled = true;
@@ -301,6 +367,23 @@ document.addEventListener('submit', async (e) => {
       if (f.new1.value !== f.new2.value) throw new Error('The two new PINs are not the same.');
       S.me = await api('/api/auth/change-pin', { method: 'POST', body: { currentPin: f.cur.value, newPin: f.new1.value } });
       toast('PIN saved'); S.tab = 'home'; await loadData();
+    } else if (f.dataset.form === 'ledger') {
+      const file = f.file.files[0]; if (!file) throw new Error('Choose the ledger file first.');
+      const fd = new FormData(); fd.append('file', file); fd.append('refreshFrom', f.refreshFrom.value);
+      S.admin.busy = true; render();
+      try {
+        const res = await fetch('/api/admin/uploads/ledger', { method: 'POST', body: fd, credentials: 'same-origin' });
+        let body = null; try { body = await res.json(); } catch { }
+        if (!res.ok) throw new Error(body?.error || (res.status === 413 ? 'The file is too large.' : `Upload failed (${res.status})`));
+        S.admin.last = body; toast('Sales refreshed');
+      } finally { S.admin.busy = false; }
+      await loadAdminData(); render(); return;
+    } else if (f.dataset.form === 'link') {
+      const u = S.admin.unmapped[Number(f.dataset.i)];
+      const m = /#(\d+)$/.exec(f.outlet.value.trim());
+      if (!m) throw new Error('Pick an outlet from the list.');
+      const r = await api('/api/admin/mappings', { method: 'POST', body: { customerNo: u.customerNo, nameKey: u.nameKey, outletId: Number(m[1]) } });
+      toast(`Linked; ${kes(r.movedAmount)} moved to the outlet`); await loadAdminData(); render(); return;
     } else if (f.dataset.form === 'phone') {
       await api(`/api/admin/users/${f.dataset.id}/phone`, { method: 'PUT', body: { phone: f.phone.value } });
       toast('Phone number saved'); await loadUsers(); render();

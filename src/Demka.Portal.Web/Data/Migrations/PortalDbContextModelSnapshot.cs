@@ -239,6 +239,12 @@ namespace Demka.Portal.Web.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int?>("CreatedByUserId")
+                        .HasColumnType("int");
+
                     b.Property<string>("CustomerName")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
@@ -251,17 +257,46 @@ namespace Demka.Portal.Web.Data.Migrations
                     b.Property<bool>("Ignore")
                         .HasColumnType("bit");
 
+                    b.Property<string>("NameKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<int?>("OutletId")
                         .HasColumnType("int");
 
-                    b.HasKey("Id");
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
-                    b.HasIndex("CustomerNo")
-                        .IsUnique();
+                    b.HasKey("Id");
 
                     b.HasIndex("OutletId");
 
+                    b.HasIndex("CustomerNo", "NameKey")
+                        .IsUnique();
+
                     b.ToTable("CustomerMappings");
+                });
+
+            modelBuilder.Entity("Demka.Portal.Web.Data.MonthStatus", b =>
+                {
+                    b.Property<DateOnly>("Month")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset?>("ClosedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int?>("ClosedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsClosed")
+                        .HasColumnType("bit");
+
+                    b.HasKey("Month");
+
+                    b.ToTable("MonthStatuses");
                 });
 
             modelBuilder.Entity("Demka.Portal.Web.Data.Outlet", b =>
@@ -550,6 +585,52 @@ namespace Demka.Portal.Web.Data.Migrations
                     b.ToTable("TargetVersions");
                 });
 
+            modelBuilder.Entity("Demka.Portal.Web.Data.UnmappedLedgerName", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(19, 4)
+                        .HasColumnType("decimal(19,4)");
+
+                    b.Property<string>("CustomerName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("CustomerNo")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<int>("Lines")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly>("Month")
+                        .HasColumnType("date");
+
+                    b.Property<string>("NameKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("PostingGroup")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<int>("UploadBatchId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UploadBatchId", "CustomerNo", "NameKey");
+
+                    b.ToTable("UnmappedLedgerNames");
+                });
+
             modelBuilder.Entity("Demka.Portal.Web.Data.UploadBatch", b =>
                 {
                     b.Property<int>("Id")
@@ -569,6 +650,9 @@ namespace Demka.Portal.Web.Data.Migrations
                     b.Property<DateOnly?>("PeriodTo")
                         .HasColumnType("date");
 
+                    b.Property<DateOnly?>("RefreshFrom")
+                        .HasColumnType("date");
+
                     b.Property<int>("RowsMatched")
                         .HasColumnType("int");
 
@@ -577,6 +661,10 @@ namespace Demka.Portal.Web.Data.Migrations
 
                     b.Property<int>("RowsRejected")
                         .HasColumnType("int");
+
+                    b.Property<string>("SummaryJson")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Type")
                         .IsRequired()

@@ -1,0 +1,229 @@
+{
+ "source": "Derived 18 Oct 2026 by matching Customer Ledger Entries (18 Oct export) to the Q4 2026 workbook Jan-Sep values. Replace with the official outlet merges v3.0 when available. Updated 18 Oct: Naivas earlier spellings and the Mbaitu/Machakos Super Centre merge. Names ending in CHEESE are handled by a rule.",
+ "mappings": [
+  {
+   "customerNo": "C00031",
+   "nameKey": "QUICKMART ADAMS",
+   "outletId": 604,
+   "outlet": "QUICKMART NGONG RD ADAMS",
+   "note": "Spelling variant; fills the outlet's Mar-Aug sales exactly"
+  },
+  {
+   "customerNo": "C00031",
+   "nameKey": "QUICKMART DIAMOND BIZ",
+   "outletId": 553,
+   "outlet": "QUICKMART DIAMOND BIZ SYOKIMAU",
+   "note": "Spelling variant; fills the outlet's Mar-Aug sales exactly"
+  },
+  {
+   "customerNo": "C00123",
+   "nameKey": "CLEANSHELF LAVINGTON",
+   "outletId": 58,
+   "outlet": "CLEANSHELF COVO LAVINGTON",
+   "note": "Spelling variant; fills the outlet's Mar-Aug sales exactly"
+  },
+  {
+   "customerNo": "C00236",
+   "nameKey": "TRANSMATT ELDORET CHEESE",
+   "outletId": 735,
+   "outlet": "TRANSMATT ELDORET",
+   "note": "Spelling variant; fills the outlet's Mar-Aug sales exactly"
+  },
+  {
+   "customerNo": "C00236",
+   "nameKey": "TRANSMATT KITALE CHEESE",
+   "outletId": 736,
+   "outlet": "TRANSMATT KITALE",
+   "note": "Spelling variant; fills the outlet's Mar-Aug sales exactly"
+  },
+  {
+   "customerNo": "C00543",
+   "nameKey": "CHIENI SUPERMARKETS LIMITED NANYUKI BRANCH",
+   "outletId": 42,
+   "outlet": "CHIENI NANYUKI",
+   "note": "Spelling variant; fills the outlet's Mar-Aug sales exactly"
+  },
+  {
+   "customerNo": "CUST033",
+   "nameKey": "NAIVAS CAPITAL CENTER",
+   "outletId": 383,
+   "outlet": "NAIVAS CAPITAL CENTRE",
+   "note": "Spelling variant; fills the outlet's Mar-Aug sales exactly"
+  },
+  {
+   "customerNo": "CUST033",
+   "nameKey": "NAIVAS EXPRESS",
+   "outletId": 395,
+   "outlet": "NAIVAS EXPRESS EMBAKASI",
+   "note": "Spelling variant; fills the outlet's Mar-Aug sales exactly"
+  },
+  {
+   "customerNo": "CUST033",
+   "nameKey": "NAIVAS KAMAKIS",
+   "outletId": 455,
+   "outlet": "NAIVAS NEWGATE MALL - KAMAKIS",
+   "note": "Spelling variant; fills the outlet's Mar-Aug sales exactly"
+  },
+  {
+   "customerNo": "CUST033",
+   "nameKey": "NAIVAS NGONG TOWN 2",
+   "outletId": 456,
+   "outlet": "NAIVAS NGONG TOWN",
+   "note": "Spelling variant; fills the outlet's Mar-Aug sales exactly"
+  },
+  {
+   "customerNo": "CUST033",
+   "nameKey": "NAIVAS SHELL SURVEY THIKA ROAD",
+   "outletId": 472,
+   "outlet": "NAIVAS SHELL SURVEY",
+   "note": "Spelling variant; fills the outlet's Mar-Aug sales exactly"
+  },
+  {
+   "customerNo": "CUST033",
+   "nameKey": "NAIVAS-JOGOO",
+   "outletId": 494,
+   "outlet": "NAIVAS-JOGOO ROAD QWETU",
+   "note": "Spelling variant; fills the outlet's Mar-Aug sales exactly"
+  },
+  {
+   "customerNo": "CUST128",
+   "nameKey": "QUICKMART CHAKA",
+   "outletId": 549,
+   "outlet": "QUICKMART CHAKA ROAD",
+   "note": "Spelling variant; fills the outlet's Mar-Aug sales exactly"
+  },
+  {
+   "customerNo": "CUST128",
+   "nameKey": "QUICKMART KAREN CHEESE",
+   "outletId": 573,
+   "outlet": "QUICKMART KAREN",
+   "note": "Spelling variant; fills the outlet's Mar-Aug sales exactly"
+  },
+  {
+   "customerNo": "CUST128",
+   "nameKey": "QUICKMART KIKUYU",
+   "outletId": 578,
+   "outlet": "QUICKMART KIKUYU ROAD",
+   "note": "Spelling variant; fills the outlet's Mar-Aug sales exactly"
+  },
+  {
+   "customerNo": "CUST128",
+   "nameKey": "QUICKMART KIKUYU CHEESE",
+   "outletId": 578,
+   "outlet": "QUICKMART KIKUYU ROAD",
+   "note": "Spelling variant; fills the outlet's Mar-Aug sales exactly"
+  },
+  {
+   "customerNo": "CUST128",
+   "nameKey": "QUICKMART NYALENDA CHEESE",
+   "outletId": 605,
+   "outlet": "QUICKMART NYALENDA",
+   "note": "Spelling variant; fills the outlet's Mar-Aug sales exactly"
+  },
+  {
+   "customerNo": "CUST173",
+   "nameKey": "HOMEWAY HQ",
+   "outletId": 181,
+   "outlet": "HOMEWAY",
+   "note": "Spelling variant; fills the outlet's Mar-Aug sales exactly"
+  },
+  {
+   "customerNo": "CUST559",
+   "nameKey": "CHIENI NYERI SOKONI",
+   "outletId": 44,
+   "outlet": "CHIENI NYERI DOWNTOWN",
+   "note": "Spelling variant; fills the outlet's Mar-Aug sales exactly"
+  },
+  {
+   "customerNo": "C00632",
+   "nameKey": "CHIENI NYERI",
+   "outletId": 44,
+   "outlet": "CHIENI NYERI DOWNTOWN",
+   "note": "Merged into Chieni Nyeri Downtown; reproduces workbook to the shilling"
+  },
+  {
+   "customerNo": "C00632",
+   "nameKey": "CHIENI SUPERMARKETS LIMITED NYERI BRANCH",
+   "outletId": 44,
+   "outlet": "CHIENI NYERI DOWNTOWN",
+   "note": "Account credits; merged into Chieni Nyeri Downtown"
+  },
+  {
+   "customerNo": "C00222",
+   "nameKey": "SAYEN INVESTMENTS LTD",
+   "outletId": 664,
+   "outlet": "SAYEN THARAKA",
+   "note": "Head-office credits booked to Sayen Tharaka in the workbook"
+  },
+  {
+   "customerNo": "CUST033",
+   "nameKey": "NAIVAS MACHAKOS SUPER CENTER",
+   "outletId": 436,
+   "outlet": "NAIVAS MBAITU",
+   "note": "Old name of Naivas Mbaitu (confirmed by Patrick 18 Oct)"
+  },
+  {
+   "customerNo": "CUST033",
+   "nameKey": "NAIVAS MACHAKOS SUPE",
+   "outletId": 436,
+   "outlet": "NAIVAS MBAITU",
+   "note": "Old name of Naivas Mbaitu (confirmed by Patrick 18 Oct)"
+  },
+  {
+   "customerNo": "CUST033",
+   "nameKey": "NAIVAS DIGO",
+   "outletId": 386,
+   "outlet": "NAIVAS DIGO MOMBASA",
+   "note": "Earlier spelling; fills the outlet's Jan-Aug sales exactly"
+  },
+  {
+   "customerNo": "CUST033",
+   "nameKey": "NAIVAS LIFESTYLE",
+   "outletId": 425,
+   "outlet": "NAIVAS LIFESTYLE CBD",
+   "note": "Earlier spelling; fills the outlet's Jan-Aug sales exactly"
+  },
+  {
+   "customerNo": "CUST033",
+   "nameKey": "NAIVAS LIKONI",
+   "outletId": 426,
+   "outlet": "NAIVAS LIKONI MOMBASA",
+   "note": "Earlier spelling; fills the outlet's Jan-Aug sales exactly"
+  },
+  {
+   "customerNo": "CUST033",
+   "nameKey": "NAIVAS SUPER CENTRE",
+   "outletId": 451,
+   "outlet": "NAIVAS NAKURU SUPER CENTRE",
+   "note": "Earlier spelling; fills the outlet's Jan-Aug sales exactly"
+  },
+  {
+   "customerNo": "CUST033",
+   "nameKey": "NAIVAS SURVEY",
+   "outletId": 472,
+   "outlet": "NAIVAS SHELL SURVEY",
+   "note": "Earlier spelling; fills the outlet's Jan-Aug sales exactly"
+  },
+  {
+   "customerNo": "CUST033",
+   "nameKey": "NAIVAS THIKA",
+   "outletId": 481,
+   "outlet": "NAIVAS THIKA TOWN",
+   "note": "Earlier spelling; fills the outlet's Jan-Aug sales exactly"
+  },
+  {
+   "customerNo": "CUST033",
+   "nameKey": "NAIVAS-DEVELOPMENT",
+   "outletId": 385,
+   "outlet": "NAIVAS DEVELOPMENT HOUSE",
+   "note": "Earlier spelling; fills the outlet's Jan-Aug sales exactly"
+  },
+  {
+   "customerNo": "CUST128",
+   "nameKey": "QUICKMART DIAMOND BIZ",
+   "outletId": 553,
+   "outlet": "QUICKMART DIAMOND BIZ SYOKIMAU",
+   "note": "Earlier spelling; fills the outlet's Jan-Aug sales exactly"
+  }
+ ]
+}

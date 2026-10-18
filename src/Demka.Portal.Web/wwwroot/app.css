@@ -84,3 +84,10 @@ td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
 .hero .tile .l{color:inherit;opacity:.85}
 .btn.small{white-space:nowrap}
 .grid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+.subnav{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.subnav .tab{flex:none;padding:8px 14px;font-size:.88rem;background:var(--surface);border:1px solid var(--line)}
+.subnav .tab.on{border-color:var(--accent)}
+.formgrid{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));align-items:end}
+select,input[type=file]{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:9px 10px;width:100%;min-width:0;font-size:15px}
+details summary{cursor:pointer}
+td.r{white-space:nowrap}

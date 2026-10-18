@@ -12,6 +12,9 @@ builder.Services.AddDbContext<PortalDbContext>(o =>
     o.UseSqlServer(builder.Configuration.GetConnectionString("Portal")
                    ?? throw new InvalidOperationException("Connection string 'Portal' is missing.")));
 builder.Services.AddScoped<TargetService>();
+builder.Services.AddScoped<LedgerImportService>();
+// Ledger exports are large (the 18 Oct full export is 40 MB).
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(o => o.MultipartBodyLengthLimit = DataEndpoints.MaxUploadBytes);
 builder.Services.ConfigureHttpJsonOptions(o =>
     o.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 
@@ -43,6 +46,7 @@ using (var scope = app.Services.CreateScope())
         await db.Database.MigrateAsync();
         await DbSeeder.SeedAsync(db, Path.Combine(AppContext.BaseDirectory, "seed", "q4-2026"), logger);
     }
+    await LedgerImportService.SeedAliasesAsync(db, Path.Combine(AppContext.BaseDirectory, "seed", "q4-2026", "customer-aliases.json"), logger);
     await BootstrapAdmin.RunAsync(db, app.Configuration, logger);
 }
 
@@ -98,6 +102,7 @@ app.MapGet("/api/health", async (PortalDbContext db) =>
 
 app.MapAuthEndpoints();
 app.MapPortalEndpoints();
+app.MapDataEndpoints();
 
 // Any other non-API path returns the app shell, so deep links work.
 app.MapFallbackToFile("index.html");

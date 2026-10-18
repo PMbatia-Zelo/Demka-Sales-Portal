@@ -7,6 +7,8 @@ public sealed class PortalDbContext(DbContextOptions<PortalDbContext> options) :
     public DbSet<AppUser> Users => Set<AppUser>();
     public DbSet<Outlet> Outlets => Set<Outlet>();
     public DbSet<CustomerMapping> CustomerMappings => Set<CustomerMapping>();
+    public DbSet<UnmappedLedgerName> UnmappedLedgerNames => Set<UnmappedLedgerName>();
+    public DbSet<MonthStatus> MonthStatuses => Set<MonthStatus>();
     public DbSet<Allocation> Allocations => Set<Allocation>();
     public DbSet<TargetCycle> TargetCycles => Set<TargetCycle>();
     public DbSet<OutletOverride> OutletOverrides => Set<OutletOverride>();
@@ -47,8 +49,9 @@ public sealed class PortalDbContext(DbContextOptions<PortalDbContext> options) :
 
         m.Entity<CustomerMapping>(e =>
         {
-            e.HasIndex(x => x.CustomerNo).IsUnique();
+            e.HasIndex(x => new { x.CustomerNo, x.NameKey }).IsUnique();
             e.Property(x => x.CustomerNo).HasMaxLength(30);
+            e.Property(x => x.Source).HasMaxLength(20);
         });
 
         m.Entity<Allocation>(e =>
@@ -81,7 +84,20 @@ public sealed class PortalDbContext(DbContextOptions<PortalDbContext> options) :
 
         m.Entity<RegionTarget>(e => e.HasIndex(x => new { x.TargetVersionId, x.Region, x.Month }).IsUnique());
 
-        m.Entity<UploadBatch>(e => e.Property(x => x.Type).HasConversion<string>().HasMaxLength(30));
+        m.Entity<UploadBatch>(e =>
+        {
+            e.Property(x => x.Type).HasConversion<string>().HasMaxLength(30);
+            e.Property(x => x.SummaryJson).HasColumnType("nvarchar(max)");
+        });
+
+        m.Entity<UnmappedLedgerName>(e =>
+        {
+            e.Property(x => x.CustomerNo).HasMaxLength(30);
+            e.Property(x => x.PostingGroup).HasMaxLength(30);
+            e.HasIndex(x => new { x.UploadBatchId, x.CustomerNo, x.NameKey });
+        });
+
+        m.Entity<MonthStatus>(e => e.HasKey(x => x.Month));
 
         m.Entity<SalesActual>(e => e.HasIndex(x => new { x.OutletId, x.Month }).IsUnique());
 

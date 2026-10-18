@@ -40,16 +40,47 @@ public sealed class Outlet
     public bool IsActive { get; set; } = true;
 }
 
-/// <summary>Business Central customer number → outlet (outlet mapping v3.0 plus merges).</summary>
+/// <summary>
+/// Business Central customer number + branch name → outlet. The name key is "Invoice Customer Name" (the branch on
+/// head-office accounts) or, when that is blank, the account name; both upper-case with single spaces.
+/// </summary>
 public sealed class CustomerMapping
 {
     public int Id { get; set; }
     public string CustomerNo { get; set; } = "";
+    public string NameKey { get; set; } = "";
     public string? CustomerName { get; set; }
     public int? OutletId { get; set; }
     public Outlet? Outlet { get; set; }
-    /// <summary>True when the customer is not Modern Trade and should be ignored on upload.</summary>
+    /// <summary>True when the name is not Modern Trade and should be skipped on upload.</summary>
     public bool Ignore { get; set; }
+    /// <summary>Seed, Name (exact outlet name), Account (account's only outlet) or Admin.</summary>
+    public string Source { get; set; } = "Admin";
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public int? CreatedByUserId { get; set; }
+}
+
+/// <summary>Sales the last ledger upload could not place, waiting for the admin to link or ignore.</summary>
+public sealed class UnmappedLedgerName
+{
+    public long Id { get; set; }
+    public int UploadBatchId { get; set; }
+    public string CustomerNo { get; set; } = "";
+    public string NameKey { get; set; } = "";
+    public string? CustomerName { get; set; }
+    public string? PostingGroup { get; set; }
+    public DateOnly Month { get; set; }
+    public decimal Amount { get; set; }
+    public int Lines { get; set; }
+}
+
+/// <summary>Whether a month's sales are final (after the day-5 close) or still provisional.</summary>
+public sealed class MonthStatus
+{
+    public DateOnly Month { get; set; }
+    public bool IsClosed { get; set; }
+    public DateTimeOffset? ClosedAt { get; set; }
+    public int? ClosedByUserId { get; set; }
 }
 
 public enum AllocationSource { Seed, Solutech, Admin }
@@ -155,6 +186,10 @@ public sealed class UploadBatch
     public int RowsMatched { get; set; }
     public int RowsRejected { get; set; }
     public int UnmappedCustomers { get; set; }
+    /// <summary>First month whose sales this upload replaced.</summary>
+    public DateOnly? RefreshFrom { get; set; }
+    /// <summary>Upload result shown on the admin screen (JSON).</summary>
+    public string? SummaryJson { get; set; }
     public int? UploadedByUserId { get; set; }
     public DateTimeOffset UploadedAt { get; set; } = DateTimeOffset.UtcNow;
 }
