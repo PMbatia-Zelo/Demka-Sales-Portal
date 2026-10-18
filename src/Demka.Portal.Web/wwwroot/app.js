@@ -115,7 +115,7 @@ const ICON = {
 
 function loginView() {
   return `<div class="login">
-    <div class="brand"><div class="logo">D</div><div><h1>Sales Capability Portal</h1><div class="muted small">Demka Dairy · Modern Trade</div></div></div>
+    <div class="brand-login"><div class="logo-tile"><img src="/logo.webp" width="140" height="164" alt="Gracies by Demka Dairy"></div><h1>Sales Capability Portal</h1><div class="muted small">Demka Dairy · Modern Trade</div></div>
     <form class="card" data-form="login" novalidate>
       <label class="f" for="phone">Phone number<input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="07XX XXX XXX" required></label>
       <label class="f" for="pin">PIN<input id="pin" name="pin" type="password" inputmode="numeric" autocomplete="current-password" maxlength="6" placeholder="4–6 digits" required></label>

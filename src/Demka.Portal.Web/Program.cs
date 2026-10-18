@@ -6,7 +6,8 @@ using Demka.Portal.Web.Services;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 
-var builder = WebApplication.CreateBuilder(args);
+var setupDatabase = args.Contains("--setup-database");
+var builder = WebApplication.CreateBuilder(args.Where(a => a != "--setup-database").ToArray());
 
 builder.Services.AddDbContext<PortalDbContext>(o =>
     o.UseSqlServer(builder.Configuration.GetConnectionString("Portal")
@@ -21,7 +22,11 @@ builder.Services.ConfigureHttpJsonOptions(o =>
 // Cookie encryption keys: keep them in a folder on the server so sign-ins survive restarts.
 var keysPath = builder.Configuration["DataProtection:KeysPath"];
 var dp = builder.Services.AddDataProtection().SetApplicationName("DemkaSalesPortal");
-if (!string.IsNullOrWhiteSpace(keysPath)) dp.PersistKeysToFileSystem(new DirectoryInfo(keysPath));
+if (!string.IsNullOrWhiteSpace(keysPath))
+{
+    dp.PersistKeysToFileSystem(new DirectoryInfo(keysPath));
+    if (OperatingSystem.IsWindows()) dp.ProtectKeysWithDpapi(); // keys encrypted at rest for the app pool account
+}
 
 builder.Services.AddPortalAuth(builder.Environment);
 
@@ -41,13 +46,21 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<PortalDbContext>();
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    if (app.Configuration.GetValue("Database:MigrateAndSeedOnStartup", false))
+    // "--setup-database": create or update the database and load the starting data, then exit.
+    // Run by an administrator during deployment, so the website itself never needs rights to change tables.
+    if (setupDatabase || app.Configuration.GetValue("Database:MigrateAndSeedOnStartup", false))
     {
         await db.Database.MigrateAsync();
         await DbSeeder.SeedAsync(db, Path.Combine(AppContext.BaseDirectory, "seed", "q4-2026"), logger);
     }
     await LedgerImportService.SeedAliasesAsync(db, Path.Combine(AppContext.BaseDirectory, "seed", "q4-2026", "customer-aliases.json"), logger);
     await BootstrapAdmin.RunAsync(db, app.Configuration, logger);
+    if (setupDatabase)
+    {
+        var applied = await db.Database.GetAppliedMigrationsAsync();
+        logger.LogWarning("Database ready: {Count} migrations applied, latest {Latest}.", applied.Count(), applied.LastOrDefault());
+        return;
+    }
 }
 
 if (!app.Environment.IsDevelopment())

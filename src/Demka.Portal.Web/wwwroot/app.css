@@ -91,3 +91,7 @@ td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
 select,input[type=file]{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:9px 10px;width:100%;min-width:0;font-size:15px}
 details summary{cursor:pointer}
 td.r{white-space:nowrap}
+/* sign-in logo: on a white tile so the navy wordmark reads in dark mode too */
+.brand-login{display:grid;justify-items:center;gap:6px;text-align:center}
+.logo-tile{background:#fff;border-radius:20px;padding:14px 18px;border:1px solid var(--line)}
+.logo-tile img{display:block;width:120px;height:auto}

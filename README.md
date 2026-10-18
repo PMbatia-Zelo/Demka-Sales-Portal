@@ -72,8 +72,19 @@ dotnet run --project src/Demka.Portal.Web
 - Increment 1: target engine, database model, starting-data load.
 - Increment 2: phone + PIN sign-in (hashed PINs, lockout after 5 wrong tries, forced PIN change, 30-day sessions), roles, merchandiser My targets / outlets / outlet detail screens, admin Users page (set phone, issue or reset PIN), installable phone app (PWA) with offline copy of the last figures.
 - Increment 3: Business Central ledger upload (Admin → Data uploads). Taxable value incl. VAT = line VAT × 7.25; outlet = Invoice Customer Name (branch) or the account name; names link by saved link → exact outlet name → the account's only outlet. Unplaced Modern Trade names go to a review list; months can be closed after the day-5 close. Verified on the 18 Oct export: Jan–Aug totals KES 904.46M against the workbook's 904.56M; 758 of 776 outlets exact, 9 within 1%. The Nirash ledger is fresh milk only (no VAT), so it adds nothing to taxable targets and needs no upload.
+- Deployment kit: `deploy/build-release.ps1` (dev PC) and `deploy/server/` scripts for the Azure VM (IIS, .NET 10 Hosting Bundle, SQL Server 2025 Express, nightly backups, releases with roll-back). The app supports `--setup-database` so the website itself only needs read/write database rights.
 - Next: Solutech check-in upload (visits, holder suggestions), team leader view.
 
 ## Data uploads (Admin → Data uploads)
 
 Upload the full Customer Ledger Entries export (.xlsx or .csv). Choose the first month to replace (normally the current month); earlier months stay as they are, so the published targets' baseline never changes. `data/seed/q4-2026/customer-aliases.json` holds 32 verified spelling variants and merges (including Naivas Machakos Super Centre → Naivas Mbaitu); any missing ones are added at start-up. Names ending in "CHEESE" on head-office accounts go to the branch without the suffix.
+
+## Deploying to the server
+
+See the Azure Server Setup Guide (shared doc) for the full steps. In short:
+
+```powershell
+.\deploy\build-release.ps1          # on the dev PC: tests, publish, zip into out\
+# copy the zip to the VM: C:\DemkaPortal\incoming
+.\deploy-release.ps1 -ZipPath C:\DemkaPortal\incoming\<zip> -HostName portal.demkadairy.co.ke   # on the VM
+```
