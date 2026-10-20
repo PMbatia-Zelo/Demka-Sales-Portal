@@ -86,5 +86,5 @@ See the Azure Server Setup Guide (shared doc) for the full steps. In short:
 ```powershell
 .\deploy\build-release.ps1          # on the dev PC: tests, publish, zip into out\
 # copy the zip to the VM: C:\DemkaPortal\incoming
-.\deploy-release.ps1 -ZipPath C:\DemkaPortal\incoming\<zip> -HostName portal.demkadairy.co.ke   # on the VM
+.\deploy-release.ps1 -ZipPath C:\DemkaPortal\incoming\<zip> -HostName sales.demkadairy.co.ke   # on the VM
 ```

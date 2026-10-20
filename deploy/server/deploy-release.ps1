@@ -8,12 +8,13 @@
   4. Creates or updates the database and loads starting data (dotnet ... --setup-database, as you)
   5. Gives the IIS pool read/write access to the database
   6. Brings the site back and checks /api/health
-  Run in PowerShell as Administrator. Your Windows account must be a SQL Server administrator.
+  Run in PowerShell as Administrator. Your account must be a SQL Server administrator, or owner of the portal database
+  after a SQL admin has run prepare-database-dba.sql once (needed for Azure Run Command, which runs as SYSTEM).
 .EXAMPLE
-  .\deploy-release.ps1 -ZipPath C:\DemkaPortal\incoming\DemkaPortal-20261020-0930-ab12cd3.zip -HostName portal.demkadairy.co.ke
+  .\deploy-release.ps1 -ZipPath C:\DemkaPortal\incoming\DemkaPortal-20261020-0930-ab12cd3.zip -HostName sales.demkadairy.co.ke
 .EXAMPLE
   # Roll back to an earlier release already on the server
-  .\deploy-release.ps1 -ReleaseFolder C:\DemkaPortal\releases\DemkaPortal-20261018-1500-9f8e7d6 -HostName portal.demkadairy.co.ke
+  .\deploy-release.ps1 -ReleaseFolder C:\DemkaPortal\releases\DemkaPortal-20261018-1500-9f8e7d6 -HostName sales.demkadairy.co.ke
 #>
 #Requires -RunAsAdministrator
 param(
@@ -50,6 +51,8 @@ if ($ZipPath) {
 Write-Host "Deploying $(Split-Path -Leaf $ReleaseFolder) to $Environment ($HostName)" -ForegroundColor Cyan
 
 # 2. Back up first, if the database exists
+# SQL Server's own service account writes the .bak files.
+icacls 'C:\DemkaPortal\backups' /grant ('NT Service\MSSQL$' + $Instance.Split('\')[-1] + ':(OI)(CI)M') /Q | Out-Null
 $exists = Invoke-Sqlcmd -ServerInstance $Instance -TrustServerCertificate -Query "SELECT DB_ID(N'$database') AS Id"
 if ($exists.Id -isnot [DBNull]) {
     & (Join-Path $PSScriptRoot 'backup-database.ps1') -DatabaseName $database -Instance $Instance -Label 'predeploy'

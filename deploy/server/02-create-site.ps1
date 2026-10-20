@@ -2,12 +2,12 @@
 .SYNOPSIS
   Creates the IIS application pool and website for the portal, with folder permissions and firewall rules.
 .PARAMETER HostName
-  The portal address, e.g. portal.demkadairy.co.ke (the DNS A record must point at this server).
+  The portal address, e.g. sales.demkadairy.co.ke (the DNS A record must point at this server).
 .PARAMETER Environment
-  'live' (default) or 'test'. Test uses its own folder, pool and host name, e.g. test-portal.demkadairy.co.ke.
+  'live' (default) or 'test'. Test uses its own folder, pool and host name, e.g. test-sales.demkadairy.co.ke.
 .EXAMPLE
-  .\02-create-site.ps1 -HostName portal.demkadairy.co.ke
-  .\02-create-site.ps1 -HostName test-portal.demkadairy.co.ke -Environment test
+  .\02-create-site.ps1 -HostName sales.demkadairy.co.ke
+  .\02-create-site.ps1 -HostName test-sales.demkadairy.co.ke -Environment test
 #>
 #Requires -RunAsAdministrator
 param(

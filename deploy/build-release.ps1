@@ -3,7 +3,8 @@
   Builds a release package of the Demka Sales Portal on the development PC.
 .DESCRIPTION
   Runs the tests, publishes the web app in Release mode and zips it, ready to copy to the server.
-  Output: out\DemkaPortal-<yyyyMMdd-HHmm>-<git commit>.zip
+  Output: out\DemkaPortal-<yyyyMMdd-HHmm>-<git commit>.zip (the app)
+          out\DemkaPortal-server-kit-<yyyyMMdd-HHmm>-<git commit>.zip (deploy\server scripts)
 .EXAMPLE
   cd C:\dev\Demka-Sales-Portal
   .\deploy\build-release.ps1
@@ -37,5 +38,10 @@ Set-Content -Path (Join-Path $publish 'release.txt') -Value "Release $name`nBuil
 $zip = "$publish.zip"
 Compress-Archive -Path (Join-Path $publish '*') -DestinationPath $zip -Force
 Remove-Item -Recurse -Force $publish
+# The server scripts travel with every release, so the server always has the matching version.
+$kit = Join-Path $out "DemkaPortal-server-kit-$stamp-$commit.zip"
+Compress-Archive -Path (Join-Path $root 'deploy\server\*') -DestinationPath $kit -Force
+
 Write-Host "Release package ready: $zip" -ForegroundColor Green
-Write-Host 'Copy it to the server (C:\DemkaPortal\incoming) and run deploy-release.ps1 there.'
+Write-Host "Server scripts:        $kit" -ForegroundColor Green
+Write-Host 'Copy both to the server: unzip the server kit into C:\DemkaPortal\deploy, put the release zip in C:\DemkaPortal\incoming, then run deploy-release.ps1.'
