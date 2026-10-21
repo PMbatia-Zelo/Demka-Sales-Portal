@@ -73,11 +73,16 @@ dotnet run --project src/Demka.Portal.Web
 - Increment 2: phone + PIN sign-in (hashed PINs, lockout after 5 wrong tries, forced PIN change, 30-day sessions), roles, merchandiser My targets / outlets / outlet detail screens, admin Users page (set phone, issue or reset PIN), installable phone app (PWA) with offline copy of the last figures.
 - Increment 3: Business Central ledger upload (Admin → Data uploads). Taxable value incl. VAT = line VAT × 7.25; outlet = Invoice Customer Name (branch) or the account name; names link by saved link → exact outlet name → the account's only outlet. Unplaced Modern Trade names go to a review list; months can be closed after the day-5 close. Verified on the 18 Oct export: Jan–Aug totals KES 904.46M against the workbook's 904.56M; 758 of 776 outlets exact, 9 within 1%. The Nirash ledger is fresh milk only (no VAT), so it adds nothing to taxable targets and needs no upload.
 - Deployment kit: `deploy/build-release.ps1` (dev PC) and `deploy/server/` scripts for the Azure VM (IIS, .NET 10 Hosting Bundle, SQL Server 2025 Express, nightly backups, releases with roll-back). The app supports `--setup-database` so the website itself only needs read/write database rights.
-- Next: Solutech check-in upload (visits, holder suggestions), team leader view.
+- Increment 4: Solutech check-in upload (Admin → Check-ins). Shops place on outlets by saved link (Solutech customer ID) → the ledger's link for the same ERP code and name → exact outlet name → same words in another order; near spellings go to a review list with suggestions, never linked automatically. Rep names match portal users after removing phone numbers and stray punctuation. Merchandisers see check-ins per outlet and month; the admin gets a holder check (who visits vs who holds each target). Verified on the Sep and 1–18 Oct reports: 10,264 check-ins, 85% placed automatically, 57 of 57 reps matched, 107 shops to review.
+- Next: team leader view and action plans.
 
 ## Data uploads (Admin → Data uploads)
 
 Upload the full Customer Ledger Entries export (.xlsx or .csv). Choose the first month to replace (normally the current month); earlier months stay as they are, so the published targets' baseline never changes. `data/seed/q4-2026/customer-aliases.json` holds 32 verified spelling variants and merges (including Naivas Machakos Super Centre → Naivas Mbaitu); any missing ones are added at start-up. Names ending in "CHEESE" on head-office accounts go to the branch without the suffix.
+
+## Check-ins (Admin → Check-ins)
+
+Upload Solutech's check-in / check-out report (.csv or .xlsx). It replaces the check-ins for the days the file covers. Link the shops to review once; later uploads remember them. The holder check compares the last 28 days of check-ins with who holds each outlet's published target. It only suggests: outlet holders don't change automatically.
 
 ## Deploying to the server
 

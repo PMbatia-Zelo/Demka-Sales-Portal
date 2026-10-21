@@ -207,14 +207,41 @@ public sealed class SalesActual
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
+/// <summary>One Solutech check-in. OutletId is null while the shop waits for the admin to link it (or is ignored).</summary>
 public sealed class Visit
 {
     public long Id { get; set; }
-    public int OutletId { get; set; }
+    /// <summary>The check-in's ID in Solutech.</summary>
+    public long ExternalId { get; set; }
+    public int? OutletId { get; set; }
     public int? UserId { get; set; }
+    /// <summary>Rep name as Solutech has it (kept when it matches no portal user).</summary>
+    public string RepName { get; set; } = "";
+    /// <summary>Solutech's own customer ID for the shop: stable even when the shop is renamed.</summary>
+    public int ShopId { get; set; }
+    public string ShopName { get; set; } = "";
+    public string? ErpCode { get; set; }
+    /// <summary>Check-in time, Nairobi time (+03:00).</summary>
     public DateTimeOffset VisitedAt { get; set; }
+    public DateTimeOffset? CheckedOutAt { get; set; }
+    public int? MinutesOnSite { get; set; }
     public string? Route { get; set; }
+    public string? Region { get; set; }
     public int? UploadBatchId { get; set; }
+}
+
+/// <summary>Solutech shop (by its customer ID) → outlet. Ignore = true for shops that are not Modern Trade outlets.</summary>
+public sealed class ShopMapping
+{
+    public int ShopId { get; set; }
+    public string ShopName { get; set; } = "";
+    public string? ErpCode { get; set; }
+    public int? OutletId { get; set; }
+    public bool Ignore { get; set; }
+    /// <summary>Ledger, Name, WordOrder (automatic) or Admin.</summary>
+    public string Source { get; set; } = "Admin";
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public int? CreatedByUserId { get; set; }
 }
 
 public enum PlanStatus { Draft, Submitted, Approved, Returned }

@@ -10,8 +10,9 @@ using Microsoft.EntityFrameworkCore;
 namespace Demka.Portal.Web.Endpoints;
 
 public sealed record LinkRequest(string? CustomerNo, string? NameKey, int? OutletId, bool Ignore);
+public sealed record ShopLinkRequest(int? OutletId, bool Ignore);
 
-/// <summary>Admin data screens: ledger upload, names to review, month close.</summary>
+/// <summary>Admin data screens: ledger and Solutech uploads, names and shops to review, holder check, month close.</summary>
 public static class DataEndpoints
 {
     public const long MaxUploadBytes = 200L * 1024 * 1024;
@@ -36,6 +37,37 @@ public static class DataEndpoints
             }
             catch (InvalidDataException ex) { return Results.BadRequest(new { error = ex.Message }); }
         }).WithMetadata(new RequestSizeLimitAttribute(MaxUploadBytes));
+
+        // Upload a Solutech check-in / check-out report (.csv or .xlsx). Replaces the visits for the days it covers.
+        admin.MapPost("/uploads/solutech", async (HttpRequest req, ClaimsPrincipal me, SolutechImportService import, CancellationToken ct) =>
+        {
+            if (!req.HasFormContentType) return Results.BadRequest(new { error = "Send the file as a form upload." });
+            var form = await req.ReadFormAsync(ct);
+            var file = form.Files.GetFile("file");
+            if (file is null || file.Length == 0) return Results.BadRequest(new { error = "Choose a file to upload." });
+            try
+            {
+                await using var s = file.OpenReadStream();
+                return Results.Ok(await import.ImportAsync(s, file.FileName, me.UserId(), ct));
+            }
+            catch (InvalidDataException ex) { return Results.BadRequest(new { error = ex.Message }); }
+        }).WithMetadata(new RequestSizeLimitAttribute(MaxUploadBytes));
+
+        // Solutech shops whose check-ins are not on an outlet yet, with suggested outlets.
+        admin.MapGet("/shops/unplaced", async (SolutechImportService import, CancellationToken ct) => Results.Ok(await import.UnplacedShopsAsync(ct)));
+
+        admin.MapPost("/shops/{shopId:int}/link", async (int shopId, ShopLinkRequest req, ClaimsPrincipal me, SolutechImportService import, CancellationToken ct) =>
+        {
+            try { return Results.Ok(await import.LinkShopAsync(shopId, req.OutletId, req.Ignore, me.UserId(), ct)); }
+            catch (InvalidDataException ex) { return Results.BadRequest(new { error = ex.Message }); }
+        });
+
+        // Who visits each outlet vs who holds its target. Optional from / to as yyyy-MM-dd.
+        admin.MapGet("/holders/check", async (SolutechImportService import, string? from, string? to, CancellationToken ct) =>
+        {
+            static DateOnly? Day(string? s) => DateOnly.TryParseExact(s ?? "", "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d : null;
+            return Results.Ok(await import.HolderCheckAsync(Day(from), Day(to), ct));
+        });
 
         admin.MapGet("/uploads", async (PortalDbContext db) =>
         {

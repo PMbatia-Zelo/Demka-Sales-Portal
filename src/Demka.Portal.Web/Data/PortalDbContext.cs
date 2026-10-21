@@ -18,6 +18,7 @@ public sealed class PortalDbContext(DbContextOptions<PortalDbContext> options) :
     public DbSet<UploadBatch> UploadBatches => Set<UploadBatch>();
     public DbSet<SalesActual> SalesActuals => Set<SalesActual>();
     public DbSet<Visit> Visits => Set<Visit>();
+    public DbSet<ShopMapping> ShopMappings => Set<ShopMapping>();
     public DbSet<ActionPlan> ActionPlans => Set<ActionPlan>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
@@ -101,7 +102,20 @@ public sealed class PortalDbContext(DbContextOptions<PortalDbContext> options) :
 
         m.Entity<SalesActual>(e => e.HasIndex(x => new { x.OutletId, x.Month }).IsUnique());
 
-        m.Entity<Visit>(e => e.HasIndex(x => new { x.OutletId, x.VisitedAt }));
+        m.Entity<Visit>(e =>
+        {
+            e.HasIndex(x => new { x.OutletId, x.VisitedAt });
+            e.HasIndex(x => x.VisitedAt);
+            e.HasIndex(x => x.ShopId);
+            e.Property(x => x.ErpCode).HasMaxLength(30);
+        });
+        m.Entity<ShopMapping>(e =>
+        {
+            e.HasKey(x => x.ShopId);
+            e.Property(x => x.ShopId).ValueGeneratedNever();
+            e.Property(x => x.ErpCode).HasMaxLength(30);
+            e.Property(x => x.Source).HasMaxLength(20);
+        });
 
         m.Entity<ActionPlan>(e =>
         {

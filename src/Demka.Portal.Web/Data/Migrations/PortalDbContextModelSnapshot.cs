@@ -495,6 +495,42 @@ namespace Demka.Portal.Web.Data.Migrations
                     b.ToTable("SalesActuals");
                 });
 
+            modelBuilder.Entity("Demka.Portal.Web.Data.ShopMapping", b =>
+                {
+                    b.Property<int>("ShopId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int?>("CreatedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ErpCode")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<bool>("Ignore")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("OutletId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ShopName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("ShopId");
+
+                    b.ToTable("ShopMappings");
+                });
+
             modelBuilder.Entity("Demka.Portal.Web.Data.TargetCycle", b =>
                 {
                     b.Property<int>("Id")
@@ -693,10 +729,40 @@ namespace Demka.Portal.Web.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
-                    b.Property<int>("OutletId")
+                    b.Property<DateTimeOffset?>("CheckedOutAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("ErpCode")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<long>("ExternalId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int?>("MinutesOnSite")
                         .HasColumnType("int");
 
+                    b.Property<int?>("OutletId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Region")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("RepName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<string>("Route")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("ShopId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ShopName")
+                        .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
@@ -710,6 +776,10 @@ namespace Demka.Portal.Web.Data.Migrations
                         .HasColumnType("datetimeoffset");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ShopId");
+
+                    b.HasIndex("VisitedAt");
 
                     b.HasIndex("OutletId", "VisitedAt");
 

@@ -14,6 +14,7 @@ builder.Services.AddDbContext<PortalDbContext>(o =>
                    ?? throw new InvalidOperationException("Connection string 'Portal' is missing.")));
 builder.Services.AddScoped<TargetService>();
 builder.Services.AddScoped<LedgerImportService>();
+builder.Services.AddScoped<SolutechImportService>();
 // Ledger exports are large (the 18 Oct full export is 40 MB).
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(o => o.MultipartBodyLengthLimit = DataEndpoints.MaxUploadBytes);
 builder.Services.ConfigureHttpJsonOptions(o =>

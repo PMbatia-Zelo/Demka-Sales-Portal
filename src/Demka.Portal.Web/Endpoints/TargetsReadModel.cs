@@ -41,6 +41,28 @@ public static class TargetsReadModel
             .Select(b => new { b.UploadedAt, b.PeriodTo })
             .FirstOrDefaultAsync(ct);
 
+        // Solutech check-ins at these outlets in the target months (anyone's), and the last check-in ever.
+        var nairobi = TimeSpan.FromHours(3);
+        var visitFrom = new DateTimeOffset(months[0].ToDateTime(TimeOnly.MinValue), nairobi);
+        var visitTo = new DateTimeOffset(lastTarget.AddMonths(1).ToDateTime(TimeOnly.MinValue), nairobi);
+        var visits = (await db.Visits.AsNoTracking()
+                .Where(v => v.OutletId != null && outletIds.Contains(v.OutletId.Value) && v.VisitedAt >= visitFrom && v.VisitedAt < visitTo)
+                .Select(v => new { OutletId = v.OutletId!.Value, v.VisitedAt, v.UserId })
+                .ToListAsync(ct))
+            .ToLookup(v => v.OutletId);
+        var lastVisits = await db.Visits.AsNoTracking()
+            .Where(v => v.OutletId != null && outletIds.Contains(v.OutletId.Value))
+            .GroupBy(v => v.OutletId!.Value)
+            .Select(g => new { OutletId = g.Key, Last = g.Max(v => v.VisitedAt) })
+            .ToDictionaryAsync(x => x.OutletId, x => x.Last, ct);
+        var lastSolutech = await db.UploadBatches.AsNoTracking()
+            .Where(b => b.Type == UploadType.SolutechCheckIns)
+            .OrderByDescending(b => b.UploadedAt)
+            .Select(b => b.PeriodTo)
+            .FirstOrDefaultAsync(ct);
+        int[] VisitsByMonth(int outletId, bool mine) => months.Select(m => visits[outletId].Count(v =>
+            (!mine || v.UserId == userId) && v.VisitedAt.ToOffset(nairobi).Year == m.Year && v.VisitedAt.ToOffset(nairobi).Month == m.Month)).ToArray();
+
         var rows = targets.GroupBy(t => t.OutletId).Select(g =>
         {
             var o = outlets[g.Key];
@@ -68,6 +90,9 @@ public static class TargetsReadModel
                 growth = first.Growth,
                 recovery = first.Recovery,
                 recoveryUpliftPerMonth = Math.Round(first.RecoveryUpliftPerMonth, 2),
+                visits = VisitsByMonth(o.Id, false),
+                myVisits = VisitsByMonth(o.Id, true),
+                lastVisit = lastVisits.TryGetValue(o.Id, out var lv) ? DateOnly.FromDateTime(lv.ToOffset(nairobi).DateTime) : (DateOnly?)null,
                 history = baselineMonths.Select(m => new { month = m, amount = Math.Round(s.GetValueOrDefault(m), 2) })
             };
         }).OrderByDescending(x => x.q4Target).ToList();
@@ -81,6 +106,7 @@ public static class TargetsReadModel
             months,
             actualsThrough = lastLedgerUpload?.PeriodTo,
             actualsUploadedAt = lastLedgerUpload?.UploadedAt,
+            visitsThrough = lastSolutech,
             totals = new
             {
                 q4Target = rows.Sum(r => r.q4Target),
@@ -90,7 +116,9 @@ public static class TargetsReadModel
                 {
                     month = m,
                     target = rows.Sum(r => r.months[i].target),
-                    actual = rows.Any(r => r.months[i].actual is not null) ? rows.Sum(r => r.months[i].actual ?? 0) : (decimal?)null
+                    actual = rows.Any(r => r.months[i].actual is not null) ? rows.Sum(r => r.months[i].actual ?? 0) : (decimal?)null,
+                    visits = rows.Sum(r => r.visits[i]),
+                    myVisits = rows.Sum(r => r.myVisits[i])
                 })
             },
             outlets = rows

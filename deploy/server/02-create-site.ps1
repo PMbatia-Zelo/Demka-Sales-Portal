@@ -20,6 +20,9 @@ Import-Module WebAdministration
 $pool = if ($Environment -eq 'live') { 'DemkaPortal' } else { 'DemkaPortalTest' }
 $site = $pool
 $path = if ($Environment -eq 'live') { 'C:\DemkaPortal\site' } else { 'C:\DemkaPortal\site-test' }
+# Test and live keep separate cookie keys, so a test sign-in can never be used on the live site.
+$keys = if ($Environment -eq 'live') { 'C:\DemkaPortal\keys' } else { 'C:\DemkaPortal\keys-test' }
+foreach ($d in $path, $keys, 'C:\DemkaPortal\logs') { New-Item -ItemType Directory -Force -Path $d | Out-Null }
 
 if (-not (Test-Path "IIS:\AppPools\$pool")) { New-WebAppPool -Name $pool | Out-Null }
 # .NET Core runs outside the .NET Framework CLR: "No Managed Code".
@@ -39,11 +42,11 @@ Set-ItemProperty "IIS:\Sites\$site" -Name applicationDefaults.preloadEnabled -Va
 # The pool's identity reads the site and writes keys and logs; nothing else.
 $identity = "IIS AppPool\$pool"
 icacls $path /grant "${identity}:(OI)(CI)RX" /T /Q | Out-Null
-foreach ($d in 'C:\DemkaPortal\keys', 'C:\DemkaPortal\logs') {
+foreach ($d in $keys, 'C:\DemkaPortal\logs') {
     icacls $d /grant "${identity}:(OI)(CI)M" /T /Q | Out-Null
 }
 # Keys folder: administrators and the app only.
-icacls 'C:\DemkaPortal\keys' /inheritance:r /grant 'Administrators:(OI)(CI)F' 'SYSTEM:(OI)(CI)F' "${identity}:(OI)(CI)M" /Q | Out-Null
+icacls $keys /inheritance:r /grant 'Administrators:(OI)(CI)F' 'SYSTEM:(OI)(CI)F' "${identity}:(OI)(CI)M" /Q | Out-Null
 
 foreach ($port in 80, 443) {
     $rule = "Demka Portal HTTP $port"
@@ -53,4 +56,4 @@ foreach ($port in 80, 443) {
 }
 
 Write-Host "IIS site '$site' created for http://$HostName (folder $path)." -ForegroundColor Green
-Write-Host "Next: put appsettings.Production.json in $path (from the template), deploy the first release, then add HTTPS with win-acme."
+Write-Host "Next: put appsettings.Production.json in $path (from the template; for test use Database=DemkaPortalTest and KeysPath $keys), deploy the first release, then add HTTPS with win-acme."

@@ -2,7 +2,7 @@
    No inline handlers or styles (the Content-Security-Policy forbids them): events use data-action, widths are set from data-w. */
 'use strict';
 
-const S = { me: null, data: null, tab: 'home', outletId: null, cachedAt: null, admin: { tab: 'users', users: null, q: '', pin: null, summary: null, uploads: null, unmapped: null, months: null, outlets: null, last: null, busy: false } };
+const S = { me: null, data: null, tab: 'home', outletId: null, cachedAt: null, admin: { tab: 'users', users: null, q: '', pin: null, summary: null, uploads: null, unmapped: null, months: null, outlets: null, last: null, busy: false, sat: null, shops: null, holders: null, hkind: 'VisitedByOther', satBusy: false, shopsShown: 20 } };
 const CACHE_KEY = 'demka.targets.v1';
 const $ = (sel) => document.querySelector(sel);
 
@@ -19,6 +19,12 @@ const pct = (v) => Math.round((v || 0) * 100) + '%';
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const monthName = (iso) => MONTHS[Number(String(iso).slice(5, 7)) - 1] || '';
 const monthLong = (iso) => new Date(String(iso).slice(0, 10) + 'T00:00:00').toLocaleString('en-GB', { month: 'long' });
+const dayShort = (iso) => new Date(String(iso).slice(0, 10) + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+function visitsText(o, i) {
+  if (!S.data?.visitsThrough || !o.visits) return '';
+  return o.visits[i] ? plural(o.visits[i], 'visit') : '<span class="pill p-warn">No visit yet</span>';
+}
 const daysIn = (iso) => { const d = new Date(String(iso).slice(0, 7) + '-01T00:00:00'); return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate(); };
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => (t.hidden = true), 2600); }
 function meter(frac, mark) {
@@ -175,6 +181,13 @@ function homeView() {
     ${hero}
     <section class="card"><div class="row"><h2>${esc(d.cycle)}</h2><span class="small muted">KES incl. VAT</span></div>
       <div class="small muted">Your ${esc(d.cycle)} target is ${kes(d.totals.q4Target)}, ${vsQ3 >= 0 ? '+' : ''}${(vsQ3 * 100).toFixed(1)}% on your Q3 sales of ${kes(d.totals.q3Actual)}.</div></section>
+    ${d.visitsThrough && m.visits != null ? (() => {
+      const notVisited = d.outlets.filter((o) => !o.visits?.[i]).length;
+      return `<section class="card"><div class="row"><h2>Check-ins in ${mon}</h2><span class="small muted">Solutech to ${esc(dayShort(d.visitsThrough))}</span></div>
+      <div class="grid3"><div class="tile"><span class="l">Your check-ins</span><span class="v num">${m.myVisits}</span></div>
+        <div class="tile"><span class="l">All at your outlets</span><span class="v num">${m.visits}</span></div>
+        <div class="tile"><span class="l">Outlets not visited</span><span class="v num">${notVisited}</span></div></div></section>`;
+    })() : ''}
     <section class="card"><div class="row"><h2>${share == null ? 'Biggest targets' : 'Needs attention'}</h2><span class="small muted">${share == null ? 'largest first' : 'lowest pace first'}</span></div>
       <div class="list">${(share == null ? d.outlets.slice(0, 4) : ranked.slice(0, 4)).map((o) => outletRow(o, i, share)).join('')}</div>
       <button class="btn" data-action="tab" data-tab="outlets">See all ${d.outlets.length} outlets</button></section>`;
@@ -185,12 +198,12 @@ function outletRow(o, i, share) {
   const tag = o.recovery ? '<span class="pill p-butter">Recovery</span>' : o.status === 'New' ? '<span class="pill p-info">New</span>' : '';
   if (share == null || m.actual == null) {
     return `<button class="item" data-action="outlet" data-id="${o.id}"><div class="row"><span class="name">${esc(o.name)}</span>${tag}</div>
-      <div class="row small muted"><span class="num">${monthName(S.data.months[i])} target ${k(m.target)}</span><span class="num">Q4 ${k(o.q4Target)}</span></div></button>`;
+      <div class="row small muted"><span class="num">${monthName(S.data.months[i])} target ${k(m.target)}</span><span class="num">${visitsText(o, i) || 'Q4 ' + k(o.q4Target)}</span></div></button>`;
   }
   const [st, cl] = paceStatus(outletPace(o, i, share));
   return `<button class="item" data-action="outlet" data-id="${o.id}"><div class="row"><span class="name">${esc(o.name)}</span><span class="pill ${cl}">${st}</span></div>
     ${meter(m.target ? m.actual / m.target : 0, share)}
-    <div class="row small muted"><span class="num">${k(m.actual)} of ${k(m.target)}</span><span>${tag}</span></div></button>`;
+    <div class="row small muted"><span class="num">${k(m.actual)} of ${k(m.target)}</span><span>${visitsText(o, i)} ${tag}</span></div></button>`;
 }
 function outletsView() {
   const d = S.data; if (!d?.outlets?.length) return homeView();
@@ -207,6 +220,9 @@ function outletDetail() {
   return `<button class="btn link" data-action="back">← Back</button>
     <div><div class="eyebrow">${esc(o.chain)} · ${esc(o.region)}</div><h1>${esc(o.name)}</h1>${o.route ? `<div class="small muted">${esc(o.route)}</div>` : ''}</div>
     <section class="card"><div class="row"><h2>${monthLong(d.months[i])}</h2><span class="small num">Target ${kes(m.target)}</span></div>${progress}</section>
+    ${d.visitsThrough && o.visits ? `<section class="card"><div class="row"><h2>Check-ins</h2><span class="small muted">Solutech to ${esc(dayShort(d.visitsThrough))}</span></div>
+      <div class="grid3">${d.months.map((mm, j) => `<div class="tile"><span class="l">${monthName(mm)}</span><span class="v num">${String(mm).slice(0, 7) > String(d.visitsThrough).slice(0, 7) ? '–' : o.visits[j]}</span>${o.visits[j] && o.myVisits[j] !== o.visits[j] ? `<span class="l">${o.myVisits[j]} by you</span>` : ''}</div>`).join('')}</div>
+      <div class="small muted">${o.lastVisit ? `Last check-in ${esc(dayShort(o.lastVisit))}.` : 'No check-ins recorded yet.'}</div></section>` : ''}
     <section class="card chart"><div class="row"><h2>Sales and targets</h2><span class="small muted">KES per month</span></div>${chart(o, d)}
       <div class="small muted">Grey: sales Jan–Sep (September provisional). Outlined: ${esc(d.cycle)} targets. Filled: sales so far.</div></section>
     <section class="card"><h2>How your target is built</h2><table><tbody>
@@ -256,10 +272,10 @@ async function loadAdminData() {
   } catch (e) { if (e.status === 401) S.me = null; else toast(e.message); }
 }
 function adminView() {
-  const tabs = [['users', 'Users'], ['data', 'Data uploads']];
+  const tabs = [['users', 'Users'], ['data', 'Sales uploads'], ['visits', 'Check-ins']];
   return `<div class="top"><div><div class="eyebrow">National Modern Trade</div><h1>Admin panel</h1></div><button class="btn small" data-action="logout">Sign out</button></div>
     <div class="subnav" role="tablist">${tabs.map(([id, l]) => `<button class="tab${S.admin.tab === id ? ' on' : ''}" role="tab" aria-selected="${S.admin.tab === id}" data-action="admintab" data-tab="${id}">${l}</button>`).join('')}</div>
-    ${S.admin.tab === 'data' ? dataView() : usersView()}`;
+    ${S.admin.tab === 'data' ? dataView() : S.admin.tab === 'visits' ? checkinsView() : usersView()}`;
 }
 const monthLabel = (iso) => new Date(String(iso).slice(0, 10) + 'T00:00:00').toLocaleString('en-GB', { month: 'short', year: 'numeric' });
 function dataView() {
@@ -302,6 +318,61 @@ function dataView() {
       <div class="error" id="err" hidden></div>
     </section>${resultCard}${reviewCard}${monthsCard}`;
 }
+async function loadCheckins() {
+  try {
+    const [uploads, shops, holders, outlets] = await Promise.all([
+      api('/api/admin/uploads'), api('/api/admin/shops/unplaced'), api('/api/admin/holders/check'),
+      S.admin.outlets ? Promise.resolve(S.admin.outlets) : api('/api/admin/outlets')]);
+    Object.assign(S.admin, { shops, holders, outlets });
+    if (!S.admin.sat) S.admin.sat = uploads.find((u) => u.type === 'SolutechCheckIns')?.summary || null;
+  } catch (e) { if (e.status === 401) S.me = null; else toast(e.message); }
+}
+function checkinsView() {
+  const A = S.admin;
+  if (!A.holders) return '<div class="loading">Loading…</div>';
+  const s = A.sat;
+  const resultCard = s ? `<section class="card"><div class="row"><h2>Last check-in upload</h2><span class="small muted">${esc(s.file || '')}</span></div>
+      <div class="grid4">
+        <div class="tile"><span class="l">Check-ins</span><span class="v num">${Number(s.visits).toLocaleString()}</span></div>
+        <div class="tile"><span class="l">On an outlet</span><span class="v num">${pct(s.placedShare)}</span></div>
+        <div class="tile"><span class="l">Reps matched</span><span class="v num">${s.repsMatched} of ${s.reps}</span></div>
+        <div class="tile"><span class="l">Shops to review</span><span class="v num">${s.reviewShops}</span></div></div>
+      <div class="small muted">${esc(dayShort(s.firstDate))} to ${esc(dayShort(s.lastDate))} · replaced ${Number(s.previousVisitsReplaced).toLocaleString()} earlier check-ins for those days · ${s.newAutomaticLinks} shops linked automatically · ${s.noCheckout} without a check-out</div>
+      ${s.unmatchedReps?.length ? `<div class="small">Reps not found among portal users (their check-ins still count for the outlet): ${s.unmatchedReps.map((r) => `${esc(r.name)} (${r.visits})`).join(', ')}.</div>` : ''}
+      ${s.rejected ? `<details><summary class="small">${s.rejected} rows skipped</summary><ul class="small">${(s.rejectedExamples || []).map((r) => `<li>Row ${r.row}: ${esc(r.reason)}</li>`).join('')}</ul></details>` : ''}
+    </section>` : '';
+  const shops = A.shops || [];
+  const shopCard = `<section class="card"><div class="row"><h2>Shops to review</h2><span class="small muted">${shops.length} shops · ${plural(shops.reduce((t, x) => t + x.visits, 0), 'check-in')}</span></div>
+    <div class="small muted">Solutech shops whose names didn't match an outlet. Pick the right outlet (its check-ins move there straight away, and future uploads remember it), or mark shops that aren't Modern Trade outlets.</div>
+    <datalist id="outletlist">${(A.outlets || []).map((o) => `<option value="${esc(o.name)} · ${esc(o.region)} #${o.id}"></option>`).join('')}</datalist>
+    ${shops.length ? `<div class="tablewrap"><table><thead><tr><th>Solutech shop</th><th class="r">Check-ins</th><th>Suggested outlet</th><th>Other outlet</th><th></th></tr></thead><tbody>
+    ${shops.slice(0, A.shopsShown).map((x, i) => `<tr><td>${esc(x.shopName)}<div class="small muted">${esc([x.erpCode, x.region].filter(Boolean).join(' · '))}</div></td>
+      <td class="r">${x.visits}<div class="small muted">${esc(x.rep)}${x.reps > 1 ? ` +${x.reps - 1}` : ''}</div></td>
+      <td>${(x.suggestions || []).map((g) => `<button class="btn small" data-action="shoplink" data-shop="${x.shopId}" data-outlet="${g.outletId}" title="Match ${Math.round(g.score * 100)}%">${esc(g.name)}</button>`).join(' ') || '<span class="small muted">No close name</span>'}</td>
+      <td><form class="inline" data-form="shoplink" data-i="${i}"><input type="search" name="outlet" list="outletlist" placeholder="Type outlet name" aria-label="Outlet for ${esc(x.shopName)}"><button class="btn small primary" type="submit">Link</button></form></td>
+      <td class="r"><button class="btn small" data-action="shopignore" data-shop="${x.shopId}">Not MT</button></td></tr>`).join('')}
+    </tbody></table></div>${shops.length > A.shopsShown ? `<button class="btn" data-action="moreshops">Show more (${shops.length - A.shopsShown} left)</button>` : ''}` : '<div class="small">Nothing to review.</div>'}</section>`;
+  const H = A.holders, c = H.counts || {};
+  const kinds = [['VisitedByOther', 'Visited by someone else', c.visitedByOther], ['NoHolder', 'No holder', c.noHolder], ['NotVisited', 'Holder not visiting', c.notVisited]];
+  const rows = (H.rows || []).filter((r) => r.kind === A.hkind);
+  const holderCard = !H.from ? '' : `<section class="card"><div class="row"><h2>Holder check</h2><span class="small muted">${esc(dayShort(H.from))} to ${esc(dayShort(H.to))}</span></div>
+    <div class="small muted">Compares who checks in at each outlet with who holds its ${esc(A.summary?.cycle || '')} target. ${c.holderVisiting ?? 0} outlets are visited mostly by their holder. These are suggestions to review with team leaders; nothing changes automatically.</div>
+    <div class="subnav" role="tablist">${kinds.map(([id, l, n]) => `<button class="tab${A.hkind === id ? ' on' : ''}" role="tab" aria-selected="${A.hkind === id}" data-action="hkind" data-kind="${id}">${l} (${n ?? 0})</button>`).join('')}</div>
+    ${rows.length ? `<div class="tablewrap"><table><thead><tr><th>Outlet</th><th class="r">Q4 target</th><th>Holder</th><th>Most check-ins</th><th>All visitors</th></tr></thead><tbody>
+    ${rows.slice(0, 200).map((r) => `<tr><td>${esc(r.outlet)}<div class="small muted">${esc(r.region)}</div></td><td class="r">${kes(r.q4Target)}</td>
+      <td>${esc(r.holder || 'Unassigned')}${r.holder ? `<div class="small muted">${plural(r.holderVisits, 'check-in')}</div>` : ''}</td>
+      <td>${r.topVisitor ? `${esc(r.topVisitor)}<div class="small muted">${plural(r.topVisits, 'check-in')}</div>` : '<span class="small muted">–</span>'}</td>
+      <td class="small">${(r.visitors || []).map((v) => `${esc(v.name)} ${v.visits}`).join(', ') || '–'}</td></tr>`).join('')}
+    </tbody></table></div>` : '<div class="small">None.</div>'}</section>`;
+  return `<section class="card"><h2>Upload Solutech check-ins</h2>
+      <div class="small muted">The check-in / check-out report from Solutech, .csv or .xlsx. Uploading replaces the check-ins for the days the file covers, so a longer or corrected report is always safe.</div>
+      <form data-form="solutech" class="formgrid" novalidate>
+        <label class="f" for="sf">File<input id="sf" name="file" type="file" accept=".csv,.xlsx" required></label>
+        <div class="f"><span>&nbsp;</span><button class="btn primary" type="submit"${A.satBusy ? ' disabled' : ''}>${A.satBusy ? 'Reading file…' : 'Upload check-ins'}</button></div>
+      </form>
+      <div class="error" id="err" hidden></div>
+    </section>${resultCard}${shopCard}${holderCard}`;
+}
 function usersView() {
   const users = (S.admin.users || []).filter((u) => !S.admin.q || (u.name + ' ' + (u.region || '') + ' ' + u.role).toLowerCase().includes(S.admin.q.toLowerCase()));
   const sum = S.admin.summary;
@@ -331,7 +402,17 @@ document.addEventListener('click', async (e) => {
   else if (a === 'reload') { location.reload(); }
   else if (a === 'changepin') { $('#app').innerHTML = changePinView(false); $('#tabbar').hidden = true; focusFirst(); }
   else if (a === 'logout') { try { await api('/api/auth/logout', { method: 'POST' }); } catch { } clearCache(); S.me = null; S.data = null; S.tab = 'home'; render(); }
-  else if (a === 'admintab') { S.admin.tab = el.dataset.tab; render(); if (S.admin.tab === 'data') { await loadAdminData(); render(); } }
+  else if (a === 'admintab') { S.admin.tab = el.dataset.tab; render(); if (S.admin.tab === 'data') { await loadAdminData(); render(); } else if (S.admin.tab === 'visits') { await loadCheckins(); render(); } }
+  else if (a === 'shoplink' || a === 'shopignore') {
+    el.disabled = true;
+    try {
+      const body = a === 'shopignore' ? { ignore: true } : { outletId: Number(el.dataset.outlet) };
+      const r = await api(`/api/admin/shops/${el.dataset.shop}/link`, { method: 'POST', body });
+      toast(a === 'shopignore' ? 'Marked as not an outlet' : `Linked; ${plural(r.visits, 'check-in')} moved`); await loadCheckins(); render();
+    } catch (err) { toast(err.message); el.disabled = false; }
+  }
+  else if (a === 'hkind') { S.admin.hkind = el.dataset.kind; render(); }
+  else if (a === 'moreshops') { S.admin.shopsShown += 30; render(); }
   else if (a === 'ignore') {
     const u = S.admin.unmapped[Number(el.dataset.i)]; el.disabled = true;
     try { await api('/api/admin/mappings', { method: 'POST', body: { customerNo: u.customerNo, nameKey: u.nameKey, ignore: true } }); toast('Marked as not Modern Trade'); await loadAdminData(); render(); }
@@ -378,6 +459,23 @@ document.addEventListener('submit', async (e) => {
         S.admin.last = body; toast('Sales refreshed');
       } finally { S.admin.busy = false; }
       await loadAdminData(); render(); return;
+    } else if (f.dataset.form === 'solutech') {
+      const file = f.file.files[0]; if (!file) throw new Error('Choose the Solutech file first.');
+      const fd = new FormData(); fd.append('file', file);
+      S.admin.satBusy = true; render();
+      try {
+        const res = await fetch('/api/admin/uploads/solutech', { method: 'POST', body: fd, credentials: 'same-origin' });
+        let body = null; try { body = await res.json(); } catch { }
+        if (!res.ok) throw new Error(body?.error || (res.status === 413 ? 'The file is too large.' : `Upload failed (${res.status})`));
+        S.admin.sat = body; toast('Check-ins uploaded');
+      } finally { S.admin.satBusy = false; }
+      await loadCheckins(); render(); return;
+    } else if (f.dataset.form === 'shoplink') {
+      const x = S.admin.shops[Number(f.dataset.i)];
+      const m = /#(\d+)$/.exec(f.outlet.value.trim());
+      if (!m) throw new Error('Pick an outlet from the list.');
+      const r = await api(`/api/admin/shops/${x.shopId}/link`, { method: 'POST', body: { outletId: Number(m[1]) } });
+      toast(`Linked; ${plural(r.visits, 'check-in')} moved`); await loadCheckins(); render(); return;
     } else if (f.dataset.form === 'link') {
       const u = S.admin.unmapped[Number(f.dataset.i)];
       const m = /#(\d+)$/.exec(f.outlet.value.trim());

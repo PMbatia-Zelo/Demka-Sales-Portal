@@ -261,4 +261,21 @@ public static class TabularReader
         }
         return false;
     }
+
+    private static readonly string[] DateTimeFormats =
+        ["yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd HH:mm", "yyyy-MM-ddTHH:mm:ss", "dd-MMM-yyyy HH:mm:ss", "dd/MM/yyyy HH:mm:ss", "dd/MM/yyyy HH:mm", "d/M/yyyy H:mm"];
+
+    /// <summary>Date and time of day: Excel serial (from .xlsx) or common text forms (from .csv). Day-first for slashes.</summary>
+    public static bool TryParseDateTime(string? s, out DateTime value)
+    {
+        value = default;
+        if (string.IsNullOrWhiteSpace(s)) return false;
+        var t = s.Trim();
+        if (double.TryParse(t, NumberStyles.Float, CultureInfo.InvariantCulture, out var serial) && serial is > 20000 and < 80000)
+        {
+            value = DateTime.FromOADate(serial);
+            return true;
+        }
+        return DateTime.TryParseExact(t, DateTimeFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out value);
+    }
 }
