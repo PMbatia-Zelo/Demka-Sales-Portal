@@ -3,7 +3,8 @@ namespace Demka.Portal.Web.Data;
 // Tables follow the data model in the design document (section "Data model").
 // Every number is held at outlet × month grain; all other views are sums over outlets.
 
-public enum UserRole { Merchandiser, TeamLeader, RegionalManager, NationalAdmin }
+/// <summary>NationalViewer: read-only national view (reporting). Stored as text, so new values need no migration.</summary>
+public enum UserRole { Merchandiser, TeamLeader, RegionalManager, NationalAdmin, NationalViewer }
 
 public sealed class AppUser
 {

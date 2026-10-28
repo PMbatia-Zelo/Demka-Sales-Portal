@@ -2,7 +2,7 @@
    No inline handlers or styles (the Content-Security-Policy forbids them): events use data-action, widths are set from data-w. */
 'use strict';
 
-const S = { me: null, data: null, tab: 'home', outletId: null, cachedAt: null, admin: { tab: 'users', users: null, q: '', pin: null, summary: null, uploads: null, unmapped: null, months: null, outlets: null, last: null, busy: false, sat: null, shops: null, holders: null, hkind: 'VisitedByOther', satBusy: false, shopsShown: 20 } };
+const S = { nat: { data: null, region: '', q: '', holder: null }, me: null, data: null, tab: 'home', outletId: null, cachedAt: null, admin: { tab: 'users', users: null, q: '', pin: null, summary: null, uploads: null, unmapped: null, months: null, outlets: null, last: null, busy: false, sat: null, shops: null, holders: null, hkind: 'VisitedByOther', satBusy: false, shopsShown: 20 } };
 const CACHE_KEY = 'demka.targets.v1';
 const $ = (sel) => document.querySelector(sel);
 
@@ -86,6 +86,7 @@ async function boot() {
 async function loadData() {
   if (!S.me || S.me.mustChangePin) return render();
   if (S.me.role === 'NationalAdmin') { S.tab = 'users'; await loadUsers(); return render(); }
+  if (S.me.role === 'NationalViewer') { await loadNational(); return render(); }
   try {
     S.data = await api('/api/me/targets'); S.cachedAt = null; saveCache(S.data);
   } catch (e) {
@@ -98,10 +99,17 @@ async function loadData() {
 // ---------- render ----------
 function render() {
   const app = $('#app'), tb = $('#tabbar');
-  app.className = 'shell' + (S.me?.role === 'NationalAdmin' && !S.me.mustChangePin ? ' wide' : '');
+  const national = S.me?.role === 'NationalAdmin' || S.me?.role === 'NationalViewer';
+  app.className = 'shell' + (national && !S.me.mustChangePin ? ' wide' : '');
   if (!S.me) { tb.hidden = true; app.innerHTML = loginView(); return focusFirst(); }
   if (S.me.mustChangePin) { tb.hidden = true; app.innerHTML = changePinView(true); return focusFirst(); }
   if (S.me.role === 'NationalAdmin') { tb.hidden = true; app.innerHTML = adminView(); applyWidths(); return; }
+  if (S.me.role === 'NationalViewer') {
+    tb.hidden = true;
+    app.innerHTML = `<div class="top"><div><div class="eyebrow">National Modern Trade · read-only</div><h1>National view</h1></div>
+      <div class="row"><button class="btn small" data-action="changepin">Change PIN</button><button class="btn small" data-action="logout">Sign out</button></div></div>${nationalView()}`;
+    applyWidths(); return;
+  }
 
   app.innerHTML = (S.cachedAt ? `<div class="banner">You're offline. Showing figures saved ${esc(new Date(S.cachedAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }))}.</div>` : '')
     + (S.outletId ? outletDetail() : S.tab === 'outlets' ? outletsView() : S.tab === 'account' ? accountView() : homeView());
@@ -272,10 +280,10 @@ async function loadAdminData() {
   } catch (e) { if (e.status === 401) S.me = null; else toast(e.message); }
 }
 function adminView() {
-  const tabs = [['users', 'Users'], ['data', 'Sales uploads'], ['visits', 'Check-ins']];
-  return `<div class="top"><div><div class="eyebrow">National Modern Trade</div><h1>Admin panel</h1></div><button class="btn small" data-action="logout">Sign out</button></div>
+  const tabs = [['users', 'Users'], ['national', 'National view'], ['data', 'Sales uploads'], ['visits', 'Check-ins']];
+  return `<div class="top"><div><div class="eyebrow">National Modern Trade</div><h1>Admin panel</h1></div><div class="row"><button class="btn small" data-action="changepin">Change PIN</button><button class="btn small" data-action="logout">Sign out</button></div></div>
     <div class="subnav" role="tablist">${tabs.map(([id, l]) => `<button class="tab${S.admin.tab === id ? ' on' : ''}" role="tab" aria-selected="${S.admin.tab === id}" data-action="admintab" data-tab="${id}">${l}</button>`).join('')}</div>
-    ${S.admin.tab === 'data' ? dataView() : S.admin.tab === 'visits' ? checkinsView() : usersView()}`;
+    ${S.admin.tab === 'data' ? dataView() : S.admin.tab === 'visits' ? checkinsView() : S.admin.tab === 'national' ? nationalView() : usersView()}`;
 }
 const monthLabel = (iso) => new Date(String(iso).slice(0, 10) + 'T00:00:00').toLocaleString('en-GB', { month: 'short', year: 'numeric' });
 function dataView() {
@@ -373,6 +381,51 @@ function checkinsView() {
       <div class="error" id="err" hidden></div>
     </section>${resultCard}${shopCard}${holderCard}`;
 }
+async function loadNational() {
+  try { S.nat.data = await api('/api/national/overview'); }
+  catch (e) { if (e.status === 401) S.me = null; else toast(e.message); }
+}
+const ROLE_LABEL = { Merchandiser: 'Merchandiser', TeamLeader: 'Team leader', RegionalManager: 'Regional manager', NationalAdmin: 'National admin', NationalViewer: 'National view (read-only)' };
+function nationalView() {
+  const d = S.nat.data;
+  if (!d) return '<div class="loading">Loading…</div>';
+  if (!d.months?.length) return '<section class="card"><h2>No published targets yet</h2></section>';
+  if (S.nat.holder) return natHolderView(S.nat.holder);
+  const i = currentMonthIndex(d), share = elapsedShare(d, i), mon = monthLong(d.months[i]);
+  const paceCell = (t, a) => { if (share == null || !t) return '<span class="small muted">–</span>'; const [st, cl] = paceStatus(a / (t * share)); return `<span class="pill ${cl}">${st}</span>`; };
+  const T = d.totals, tm = T.targets[i], am = T.actuals[i];
+  const hero = `<section class="card hero"><div class="row"><div><div class="eyebrow">${mon} to date · all regions</div><div class="big num">${kes(am)}</div></div>${share == null ? '' : `<span class="pill">${paceStatus(tm ? am / (tm * share) : 0)[0]}</span>`}</div>
+    ${meter(tm ? am / tm : 0, share ?? 0)}
+    <div class="small">${pct(tm ? am / tm : 0)} of the ${mon} target of ${kes(tm)}${d.actualsThrough ? `, sales to ${esc(dayShort(d.actualsThrough))}` : ''}${d.visitsThrough ? ` · check-ins to ${esc(dayShort(d.visitsThrough))}` : ''}.</div>
+    <div class="grid3"><div class="tile"><span class="l">${esc(d.cycle)} target</span><span class="v num">${k(T.q4Target)}</span></div>
+      <div class="tile"><span class="l">${esc(d.cycle)} to date</span><span class="v num">${k(T.q4Actual)}</span></div>
+      <div class="tile"><span class="l">${mon} check-ins</span><span class="v num">${Number(T.visits[i]).toLocaleString()}</span></div></div></section>`;
+  const regions = `<section class="card"><div class="row"><h2>Regions</h2><span class="small muted">KES incl. VAT</span></div><div class="tablewrap"><table><thead><tr><th>Region</th><th class="r">Outlets</th><th class="r">${monthName(d.months[i])} target</th><th class="r">To date</th><th class="r">% of target</th><th>Pace</th><th class="r">${esc(d.cycle)} target</th><th class="r">Check-ins</th></tr></thead><tbody>
+    ${d.regions.map((r) => `<tr><td>${esc(r.region)}</td><td class="r">${r.outlets}</td><td class="r">${kes(r.targets[i])}</td><td class="r">${kes(r.actuals[i])}</td><td class="r">${pct(r.targets[i] ? r.actuals[i] / r.targets[i] : 0)}</td><td>${paceCell(r.targets[i], r.actuals[i])}</td><td class="r">${kes(r.q4Target)}</td><td class="r">${r.visits[i]}</td></tr>`).join('')}
+    </tbody></table></div></section>`;
+  const q = S.nat.q.toLowerCase();
+  const hs = d.holders.filter((h) => (!S.nat.region || h.region === S.nat.region) && (!q || h.name.toLowerCase().includes(q)));
+  const chips = ['', ...d.regions.map((r) => r.region)].map((r) => `<button class="tab${S.nat.region === r ? ' on' : ''}" data-action="natregion" data-region="${esc(r)}">${r ? esc(r) : 'All regions'}</button>`).join('');
+  const people = `<section class="card"><div class="row"><h2>Merchandisers and team leaders</h2><span class="small muted">${hs.length} of ${d.holders.length}</span></div>
+    <div class="subnav">${chips}</div>
+    <label class="f" for="nq">Search<input id="nq" type="search" value="${esc(S.nat.q)}" placeholder="Name" data-action="natsearch"></label>
+    <div class="tablewrap"><table><thead><tr><th>Name</th><th>Region</th><th class="r">Outlets</th><th class="r">${monthName(d.months[i])} target</th><th class="r">To date</th><th class="r">%</th><th>Pace</th><th class="r">Check-ins</th><th></th></tr></thead><tbody>
+    ${hs.map((h) => `<tr><td>${esc(h.name)}${h.role ? `<div class="small muted">${esc(ROLE_LABEL[h.role] || h.role)}</div>` : ''}</td><td>${esc(h.region || '–')}</td><td class="r">${h.outlets}</td><td class="r">${kes(h.targets[i])}</td><td class="r">${kes(h.actuals[i])}</td><td class="r">${pct(h.targets[i] ? h.actuals[i] / h.targets[i] : 0)}</td><td>${paceCell(h.targets[i], h.actuals[i])}</td><td class="r">${h.visits[i]}</td>
+      <td class="r">${h.id ? `<button class="btn small" data-action="natholder" data-id="${h.id}">Outlets</button>` : ''}</td></tr>`).join('')}
+    </tbody></table></div></section>`;
+  return hero + regions + people;
+}
+function natHolderView(d) {
+  const i = currentMonthIndex(d), share = elapsedShare(d, i), m = d.totals?.months?.[i];
+  const rows = (d.outlets || []).map((o) => {
+    const x = o.months[i]; const pace = share == null || !x.target ? '' : (() => { const [st, cl] = paceStatus((x.actual || 0) / (x.target * share)); return `<span class="pill ${cl}">${st}</span>`; })();
+    return `<tr><td>${esc(o.name)}<div class="small muted">${esc(o.chain)}${o.recovery ? ' · Recovery' : ''}${o.status === 'New' ? ' · New' : ''}</div></td><td class="r">${kes(x.target)}</td><td class="r">${x.actual == null ? '–' : kes(x.actual)}</td><td>${pace}</td><td class="r">${o.visits ? o.visits[i] : '–'}</td><td>${o.lastVisit ? esc(dayShort(o.lastVisit)) : '–'}</td><td class="r">${kes(o.q4Target)}</td></tr>`;
+  }).join('');
+  return `<button class="btn link" data-action="natback">← National view</button>
+    <section class="card"><div class="row"><div><div class="eyebrow">${esc(ROLE_LABEL[d.holder.role] || d.holder.role)} · ${esc(d.holder.region || '')}</div><h2>${esc(d.holder.name)}</h2></div><span class="small muted">${(d.outlets || []).length} outlets</span></div>
+      ${m ? `<div class="grid3"><div class="tile"><span class="l">${monthName(d.months[i])} target</span><span class="v num">${k(m.target)}</span></div><div class="tile"><span class="l">To date</span><span class="v num">${m.actual == null ? '–' : k(m.actual)}</span></div><div class="tile"><span class="l">${esc(d.cycle)} target</span><span class="v num">${k(d.totals.q4Target)}</span></div></div>` : ''}
+      <div class="tablewrap"><table><thead><tr><th>Outlet</th><th class="r">${monthName(d.months[i])} target</th><th class="r">To date</th><th>Pace</th><th class="r">Check-ins</th><th>Last</th><th class="r">${esc(d.cycle)} target</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
+}
 function usersView() {
   const users = (S.admin.users || []).filter((u) => !S.admin.q || (u.name + ' ' + (u.region || '') + ' ' + u.role).toLowerCase().includes(S.admin.q.toLowerCase()));
   const sum = S.admin.summary;
@@ -382,10 +435,19 @@ function usersView() {
       <div class="small muted">Give this PIN to ${esc(S.admin.pin.name.split(' ')[0])} by phone or in person. It is shown only once; they must choose their own PIN when they first sign in.</div></section>` : ''}
     ${sum ? `<section class="card"><div class="row"><h2>${esc(sum.cycle)} targets · v${sum.version}</h2><span class="num">${kes(sum.total, 1)}</span></div>
       <div class="grid4">${sum.regions.map((r) => `<div class="tile"><span class="l">${esc(r.region)}</span><span class="v num">${k(r.target, 1)}</span></div>`).join('')}</div></section>` : ''}
+    <section class="card"><h2>Add a user</h2>
+      <div class="small muted">For staff who aren't in the starting data, e.g. platform admins or national reporting users. Set the phone here, then issue a PIN from the list below.</div>
+      <form data-form="adduser" class="formgrid" novalidate>
+        <label class="f" for="nu-name">Full name<input id="nu-name" name="name" type="text" required></label>
+        <label class="f" for="nu-role">Role<select id="nu-role" name="role">${Object.keys(ROLE_LABEL).map((r) => `<option value="${r}"${r === 'NationalViewer' ? ' selected' : ''}>${ROLE_LABEL[r]}</option>`).join('')}</select></label>
+        <label class="f" for="nu-region">Region<select id="nu-region" name="region"><option value="">National / none</option>${['Nairobi', 'Central', 'Western', 'Coast'].map((r) => `<option>${r}</option>`).join('')}</select></label>
+        <label class="f" for="nu-phone">Phone<input id="nu-phone" name="phone" type="tel" placeholder="07XX XXX XXX"></label>
+        <div class="f"><span>&nbsp;</span><button class="btn primary" type="submit">Add user</button></div>
+      </form><div class="error" id="err" hidden></div></section>
     <section class="card"><div class="row"><h2>Users</h2><span class="small muted">${users.length} of ${(S.admin.users || []).length}</span></div>
       <label class="f" for="uq">Search<input id="uq" type="search" value="${esc(S.admin.q)}" placeholder="Name, region or role" data-action="usersearch"></label>
       <div class="tablewrap"><table><thead><tr><th>Name</th><th>Role</th><th>Region</th><th class="r">Outlets</th><th>Phone</th><th>PIN</th><th></th></tr></thead><tbody>
-      ${users.map((u) => `<tr><td>${esc(u.name)}</td><td>${esc(u.role)}</td><td>${esc(u.region || '–')}</td><td class="r">${u.outlets}</td>
+      ${users.map((u) => `<tr><td>${esc(u.name)}</td><td><div class="inline"><select id="role-${u.id}" aria-label="Role for ${esc(u.name)}">${Object.keys(ROLE_LABEL).map((r) => `<option value="${r}"${r === u.role ? ' selected' : ''}>${ROLE_LABEL[r]}</option>`).join('')}</select><button class="btn small" data-action="saverole" data-id="${u.id}"${u.id === S.me.id ? ' disabled title="Ask another admin to change your role"' : ''}>Save</button></div></td><td>${esc(u.region || '–')}</td><td class="r">${u.outlets}</td>
         <td><form class="inline" data-form="phone" data-id="${u.id}"><input type="tel" name="phone" aria-label="Phone for ${esc(u.name)}" value="${esc(u.phone ? '0' + u.phone.slice(4) : '')}" placeholder="07XX XXX XXX"><button class="btn small" type="submit">Save</button></form></td>
         <td>${statusPill(u.pinStatus)}</td>
         <td class="r"><button class="btn small" data-action="resetpin" data-id="${u.id}"${u.phone ? '' : ' disabled title="Set a phone number first"'}>${u.pinStatus === 'Not issued' ? 'Issue PIN' : 'Reset PIN'}</button></td></tr>`).join('')}
@@ -402,7 +464,19 @@ document.addEventListener('click', async (e) => {
   else if (a === 'reload') { location.reload(); }
   else if (a === 'changepin') { $('#app').innerHTML = changePinView(false); $('#tabbar').hidden = true; focusFirst(); }
   else if (a === 'logout') { try { await api('/api/auth/logout', { method: 'POST' }); } catch { } clearCache(); S.me = null; S.data = null; S.tab = 'home'; render(); }
-  else if (a === 'admintab') { S.admin.tab = el.dataset.tab; render(); if (S.admin.tab === 'data') { await loadAdminData(); render(); } else if (S.admin.tab === 'visits') { await loadCheckins(); render(); } }
+  else if (a === 'admintab') { S.admin.tab = el.dataset.tab; render(); if (S.admin.tab === 'data') { await loadAdminData(); render(); } else if (S.admin.tab === 'visits') { await loadCheckins(); render(); } else if (S.admin.tab === 'national') { await loadNational(); render(); } }
+  else if (a === 'natholder') {
+    el.disabled = true;
+    try { S.nat.holder = await api(`/api/national/holders/${el.dataset.id}/targets`); render(); window.scrollTo(0, 0); }
+    catch (err) { toast(err.message); el.disabled = false; }
+  }
+  else if (a === 'natback') { S.nat.holder = null; render(); }
+  else if (a === 'natregion') { S.nat.region = el.dataset.region; render(); }
+  else if (a === 'saverole') {
+    const sel = document.getElementById('role-' + el.dataset.id); el.disabled = true;
+    try { await api(`/api/admin/users/${el.dataset.id}`, { method: 'PUT', body: { role: sel.value } }); toast('Role saved'); await loadUsers(); render(); }
+    catch (err) { toast(err.message); el.disabled = false; }
+  }
   else if (a === 'shoplink' || a === 'shopignore') {
     el.disabled = true;
     try {
@@ -431,6 +505,10 @@ document.addEventListener('click', async (e) => {
   }
 });
 document.addEventListener('input', (e) => {
+  if (e.target.dataset.action === 'natsearch') {
+    S.nat.q = e.target.value; clearTimeout(S.nat.t);
+    S.nat.t = setTimeout(() => { render(); const f = $('#nq'); if (f) { f.focus(); f.setSelectionRange(f.value.length, f.value.length); } }, 250);
+  }
   if (e.target.dataset.action === 'usersearch') {
     S.admin.q = e.target.value; clearTimeout(S.admin.t);
     S.admin.t = setTimeout(() => { render(); const f = $('#uq'); f.focus(); f.setSelectionRange(f.value.length, f.value.length); }, 250);
@@ -482,6 +560,9 @@ document.addEventListener('submit', async (e) => {
       if (!m) throw new Error('Pick an outlet from the list.');
       const r = await api('/api/admin/mappings', { method: 'POST', body: { customerNo: u.customerNo, nameKey: u.nameKey, outletId: Number(m[1]) } });
       toast(`Linked; ${kes(r.movedAmount)} moved to the outlet`); await loadAdminData(); render(); return;
+    } else if (f.dataset.form === 'adduser') {
+      const r = await api('/api/admin/users', { method: 'POST', body: { name: $('#nu-name').value, role: $('#nu-role').value, region: $('#nu-region').value, phone: $('#nu-phone').value } });
+      toast(`${r.name} added`); f.reset(); S.admin.q = r.name; await loadUsers(); render(); return;
     } else if (f.dataset.form === 'phone') {
       await api(`/api/admin/users/${f.dataset.id}/phone`, { method: 'PUT', body: { phone: f.phone.value } });
       toast('Phone number saved'); await loadUsers(); render();

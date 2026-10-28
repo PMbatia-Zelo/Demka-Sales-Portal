@@ -117,6 +117,7 @@ app.MapGet("/api/health", async (PortalDbContext db) =>
 app.MapAuthEndpoints();
 app.MapPortalEndpoints();
 app.MapDataEndpoints();
+app.MapNationalEndpoints();
 
 // Any other non-API path returns the app shell, so deep links work.
 app.MapFallbackToFile("index.html");

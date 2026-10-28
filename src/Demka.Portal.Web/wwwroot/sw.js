@@ -1,7 +1,7 @@
 /* Service worker: keeps the app shell on the phone so it opens on weak mobile data.
    Data (/api) is never cached here; the app keeps its own copy of the last figures. Bump VERSION on every release. */
-const VERSION = 'demka-shell-v5';
-const SHELL = ['/', '/index.html', '/app.css?v=5', '/app.js?v=5', '/manifest.webmanifest', '/logo.webp', '/icons/icon.svg', '/icons/icon-192.png', '/icons/icon-512.png'];
+const VERSION = 'demka-shell-v6';
+const SHELL = ['/', '/index.html', '/app.css?v=6', '/app.js?v=6', '/manifest.webmanifest', '/logo.webp', '/icons/icon.svg', '/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

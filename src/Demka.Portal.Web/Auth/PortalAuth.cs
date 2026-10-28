@@ -25,6 +25,8 @@ public static class Policies
     public const string Ready = "Ready";
     public const string TeamLead = "TeamLead";
     public const string Admin = "Admin";
+    /// <summary>National read-only view: national admins and national viewers.</summary>
+    public const string National = "National";
 }
 
 public static class PortalAuth
@@ -55,7 +57,9 @@ public static class PortalAuth
             .AddPolicy(Policies.TeamLead, p => p.RequireAuthenticatedUser().RequireAssertion(NoPinChangePending)
                 .RequireRole(nameof(UserRole.TeamLeader), nameof(UserRole.RegionalManager), nameof(UserRole.NationalAdmin)))
             .AddPolicy(Policies.Admin, p => p.RequireAuthenticatedUser().RequireAssertion(NoPinChangePending)
-                .RequireRole(nameof(UserRole.NationalAdmin)));
+                .RequireRole(nameof(UserRole.NationalAdmin)))
+            .AddPolicy(Policies.National, p => p.RequireAuthenticatedUser().RequireAssertion(NoPinChangePending)
+                .RequireRole(nameof(UserRole.NationalAdmin), nameof(UserRole.NationalViewer)));
 
         return services;
     }
